@@ -3,4 +3,4 @@ dash_bootstrap_templates==2.1.0
 pandas==2.3.3
 numpy==2.3.3
 statsmodels==0.14.4
-scipy==1.16.2
+scipy==1.15.3
