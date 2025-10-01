@@ -198,3 +198,4 @@ def narrative_scatter(y_choice, x_choice):
 
 if __name__ == "__main__":
     app.run()
+    server = app.server
