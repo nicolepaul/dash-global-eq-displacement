@@ -195,3 +195,4 @@ def narrative_scatter(y_choice, x_choice):
 
 if __name__ == "__main__":
     app.run(port=os.environ.get('PORT', 10000))
+    server = app.server
