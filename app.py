@@ -1,3 +1,5 @@
+import os
+
 import dash
 import plotly.graph_objs as go
 from dash import Input, Output, dcc, html
@@ -192,4 +194,4 @@ def narrative_scatter(y_choice, x_choice):
     ]
 
 if __name__ == "__main__":
-    app.run()
+    app.run(port=os.environ.get('PORT', 10000))
