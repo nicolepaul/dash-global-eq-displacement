@@ -193,6 +193,5 @@ def narrative_scatter(y_choice, x_choice):
         html.Div(dcc.Markdown("Or, equivalently: $y = x^\\alpha$", mathjax=True)),
     ]
 
-if __name__ == "__main__":
-    app.run(port=os.environ.get('PORT', 10000))
-    server = app.server
+app.run()
+server = app.server
