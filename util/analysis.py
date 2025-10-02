@@ -32,7 +32,7 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
             x=x_vals,
             y=10 ** y_hat,
             mode="lines",
-            name=f"{method.upper()} (α={alpha:.2f})",
+            name=f"{method.upper()} (α={alpha:.3f})",
             line=dict(color="black", dash="dash"),
         )
 
