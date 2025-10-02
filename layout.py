@@ -3,9 +3,6 @@ import dash_bootstrap_components as dbc
 
 from _config import *
 
-BORDERLESS = {"style": {"border": "none", "boxShadow": "none"}}
-
-
 def header():
     return dbc.Card(
         [
@@ -26,12 +23,11 @@ def header():
             ),
         ],
         body=True,
-        **BORDERLESS,
     )
 
 
 def footer():
-    return dbc.Card([], body=True, **BORDERLESS)
+    return dbc.Card([], body=True)
 
 
 def controls(xs, ys, default_x, default_y):
@@ -104,12 +100,10 @@ def regression_section():
             dbc.Row(
                 html.Div(
                     id="regression-narrative",
-                    **BORDERLESS,
                 )
             ),
         ],
         body=True,
-        **BORDERLESS,
     )
 
 
@@ -125,7 +119,8 @@ def secondary_section():
                     ),
                 ]
             )
-        ]
+        ],
+        body=True,
     )
 
 
@@ -133,6 +128,7 @@ def event_narrative():
     return dbc.Card(
         [html.Div(DEFAULT_TEXT, id="reset-event-narrative")],
         id="event-narrative",
+        body=True,
     )
 
 
@@ -143,7 +139,7 @@ def create_layout(xs, ys, df):
 
     return dbc.Container(
         [
-            dcc.Store(id="narrative-toggle", data=True), # triggle for global context
+            dcc.Store(id="narrative-toggle", data=True),
             dbc.Row([header()]),
             dbc.Row(
                 [

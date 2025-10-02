@@ -1,6 +1,8 @@
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
+BORDERLESS = {"style": {"border": "none", "boxShadow": "none"}}
+
 
 DEFAULT_TEXT = dbc.CardBody(
     [
