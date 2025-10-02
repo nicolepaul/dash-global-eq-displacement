@@ -1,6 +1,41 @@
 body {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: Lato, Arial, sans-serif;
     background-color: #ffffff;
+    color: #212121;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+h1 {
+    padding-top: 1rem;
+    padding-bottom: 0.75rem;
+}
+
+h1, h2, h3, h4, h5 {
+    font-weight: 700;
+    color: #212121; 
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+b {
+    font-weight: 600;
+}
+
+a {
+    color: #666666;
+    text-decoration: none;
+    font-weight: 400;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.card {
+    border: 10px #212121;
+    box-shadow: 0px;
+    border-radius: 8px;
 }
 
 .card h4, .card h5 {
@@ -8,19 +43,27 @@ body {
     margin-bottom: 0.75rem;
 }
 
-ul.no-bullets {
-    list-style-type: none;
-    padding-left: 0;
-    margin: 0;
-}
-
 .list-group-item {
     border: none;
     padding-top: 2px;
     padding-bottom: 2px;
-    line-height: 1.3;  
+    line-height: 1.25;  
+    color: #333;
+    font-size: 0.95rem;
 }
 
-.stack-tight > div {
-    margin-bottom: 0.25rem;
+.form-check {
+    display: flex;
+    align-items: left;
+    margin-bottom: 0.5rem;
+}
+.form-check-input {
+    margin-right: 0.4rem;
+}
+
+footer {
+    font-size: 0.85rem;
+    color: #666666;
+    margin-top: 1rem;
+    text-align: center;
 }

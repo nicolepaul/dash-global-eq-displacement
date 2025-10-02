@@ -12,13 +12,14 @@ df, xs, ys = get_data()
 def create_app():
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
     load_figure_template("FLATLY")
+    app._favicon = "favicon.ico"
     app.title = "Population displacement after earthquakes"
-    app.layout = create_layout(xs, ys, df)   # pass initial data
-    register_callbacks(app, df)              # attach callbacks
+    app.layout = create_layout(xs, ys, df)
+    register_callbacks(app, df)
     return app
 
 app = create_app()
-server = app.server  # needed for deployment (Gunicorn, etc.)
+server = app.server  
 
 if __name__ == "__main__":
     app.run(debug=True)

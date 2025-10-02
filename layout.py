@@ -107,6 +107,7 @@ def regression_section():
                 )
             ),
         ],
+        body=True,
         **BORDERLESS,
     )
 
