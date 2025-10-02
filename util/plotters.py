@@ -34,6 +34,7 @@ def arrange_scatter(df, y_choice, x_choice):
                 y=sub[y_choice],
                 mode="markers",
                 name=region,
+                customdata=df.to_dict("records"),
                 marker=dict(
                     color=REGION_COLORS[region],
                     size=10,

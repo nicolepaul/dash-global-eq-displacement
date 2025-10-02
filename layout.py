@@ -1,6 +1,8 @@
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
+from _config import *
+
 BORDERLESS = {"style": {"border": "none", "boxShadow": "none"}}
 
 
@@ -13,8 +15,7 @@ def header():
                 This dashboard visualizes newly assembled data on population displacement
                 after recent earthquakes around the world, as well as potential
                 displacement drivers such as housing damage.
-                Research in progress, with support from the UCL Overseas Research Scholarship,
-                WTW Research Network, and IDMC.
+                Research in progress, with support from the IDMC, UCL, and WTW Research Network.
                 """
             ),
             html.Em(
@@ -112,6 +113,29 @@ def regression_section():
     )
 
 
+def secondary_section():
+    return dbc.Card(
+        [
+            dbc.Row(
+                [
+                    html.P(),
+                    html.H4("Second-order analysis"),
+                    html.P(
+                        "We can eventually add some results for non-damage drivers here."
+                    ),
+                ]
+            )
+        ]
+    )
+
+
+def event_narrative():
+    return dbc.Card(
+        [html.Div(DEFAULT_TEXT, id="reset-event-narrative")],
+        id="event-narrative",
+    )
+
+
 def create_layout(xs, ys, df):
     # Default x/y for initial view
     default_y = "sheltered_peak"
@@ -119,12 +143,19 @@ def create_layout(xs, ys, df):
 
     return dbc.Container(
         [
+            dcc.Store(id="narrative-toggle", data=True), # triggle for global context
             dbc.Row([header()]),
             dbc.Row(
                 [
-                    dbc.Col(scatter_graph(), md=8),
                     dbc.Col(
-                        [controls(xs, ys, default_x, default_y), regression_section()],
+                        [dbc.Row(scatter_graph()), dbc.Row(event_narrative())], md=8
+                    ),
+                    dbc.Col(
+                        [
+                            controls(xs, ys, default_x, default_y),
+                            regression_section(),
+                            secondary_section(),
+                        ],
                         md=4,
                     ),
                 ],
