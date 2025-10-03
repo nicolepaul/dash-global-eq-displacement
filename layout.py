@@ -123,12 +123,14 @@ def secondary_section():
         body=True,
     )
 
-
 def event_narrative():
     return dbc.Card(
-        [html.Div(DEFAULT_TEXT, id="reset-event-narrative")],
-        id="event-narrative",
-        body=True,
+        [
+            dcc.Store(id="narrative-mode", data="default"),
+            dcc.Store(id="narrative-event-data", data=None),
+            dbc.Card(id="event-narrative", body=True)
+        ],
+        body=True
     )
 
 
@@ -139,7 +141,7 @@ def create_layout(xs, ys, df):
 
     return dbc.Container(
         [
-            dcc.Store(id="narrative-toggle", data=True),
+            # stores(),
             dbc.Row([header()]),
             dbc.Row(
                 [

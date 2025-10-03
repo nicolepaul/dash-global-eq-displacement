@@ -1,6 +1,6 @@
 import plotly.graph_objs as go
 import dash_bootstrap_components as dbc
-from dash import Input, Output, State, html, dcc, callback_context
+from dash import Input, Output, State, html, dcc
 
 from _config import *
 from util.analysis import run_regression
@@ -50,35 +50,48 @@ def register_callbacks(app, df):
             ]
 
         return go.Figure(data=traces, layout=layout), narrative
-
+    
     @app.callback(
-        Output("event-narrative", "children"),
+        Output("narrative-mode", "data"),
+        Output("narrative-event-data", "data"),
         Input("scatter-graph", "clickData"),
-        Input("reset-event-narrative", "n_clicks"),
         prevent_initial_call=True,
     )
-    def update_event_narrative(clickData, reset_n_clicks):
-        ctx = callback_context  
+    def set_event_mode(clickData):
 
-        # If reset link was clicked, show default text
-        if ctx.triggered and ctx.triggered[0]["prop_id"].startswith("reset-event-narrative"):
-            return DEFAULT_TEXT
+        if clickData is None:
+            return "default", None
+        point = clickData["points"][0]
+        return "event", point.get("customdata", None)
 
-        # Otherwise, handle clickData
+    # When back link is clicked, reset to default
+    @app.callback(
+        Output("narrative-mode", "data", allow_duplicate=True),
+        Output("narrative-event-data", "data", allow_duplicate=True),
+        Input("back-link", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def reset_mode(_):
+        return "default", None
+
+    # Main narrative renderer
+    @app.callback(
+        Output("event-narrative", "children"),
+        Input("narrative-mode", "data"),
+        State("narrative-event-data", "data"),
+    )
+    def render_narrative(mode, event_data):
+
         def parse_event_info(row):
             heading = html.H4(row["event"] + ", " + row["country"])
             body = html.P("A narrative about this event will eventually go here")
-            footing = html.A(
-                "Return to the global data definitions →",
-                href="#",
-                id="reset-event-narrative",
-            )
+            footing = html.A("← Back to global data definitions", href="#", id="back-link")
             return dbc.CardBody([heading, body, footing])
+        
+        if mode == "default":
+            return dbc.CardBody(DEFAULT_TEXT)
 
-        if clickData and "points" in clickData and len(clickData["points"]) > 0:
-            point = clickData["points"][0]
-            row = point.get("customdata", None)
-            if row:
-                return parse_event_info(row)
+        if mode == "event" and event_data is not None:
+            return parse_event_info(event_data)
 
-        return DEFAULT_TEXT
+        return dbc.CardBody(DEFAULT_TEXT)
