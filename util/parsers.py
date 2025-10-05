@@ -24,6 +24,7 @@ def get_data():
         "sheltered_>1m": "Sheltered (>1mo)",
         "sheltered_>3m": "Sheltered (>3mo)",
         "sheltered_>6m": "Sheltered (>6mo)",
+        "needs": "Needed housing assistance (>6mo)",
         "assisted": "Received housing assistance",
     }
 

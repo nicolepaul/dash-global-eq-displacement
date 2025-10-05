@@ -23,8 +23,14 @@ DEFAULT_TEXT = dbc.CardBody(
                 ),
                 html.Li(
                     [
+                        html.B("Needs: "),
+                        "This is the number of people who required sheltering or housing assistance after the earthquake. Estimates near the six month mark were prioritized, typically representing the population still in collective shelters or who were receiving some form of temporary or transitional housing from the government.",
+                    ]
+                ),
+                html.Li(
+                    [
                         html.B("Assisted: "),
-                        "This is the number of people who required and/or received sheltering or housing assistance after the earthquake. Forms of assistance could include temporary or transitional housing, cash assistance for repairs or rebuilding, rental voucher, or replacement housing. Often, governments distribute this form of assistance based on housing damage, resulting in a high correlation between the reported damage and the reported number of people receiving assistance.",
+                        "This is the number of people who rreceived sheltering or housing assistance after the earthquake. Forms of assistance could include temporary or transitional housing, cash assistance for repairs or rebuilding, rental voucher, or replacement housing. Often, governments distribute this form of assistance based on housing damage, resulting in a high correlation between the reported damage and the reported number of people receiving assistance.",
                     ]
                 ),
             ]

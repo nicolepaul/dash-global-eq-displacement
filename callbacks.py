@@ -84,7 +84,7 @@ def register_callbacks(app, df):
 
         def parse_event_info(row):
             heading = html.H4(row["event"] + ", " + row["country"])
-            body = html.P("A narrative about this event will eventually go here")
+            body = dcc.Markdown(row["narrative"])
             footing = html.A("← Back to global data definitions", href="#", id="back-link")
             return dbc.CardBody([heading, body, footing])
         
