@@ -42,15 +42,17 @@ def register_callbacks(app, df):
             narrative = [
                 html.P(),
                 html.Div(
-                    dcc.Markdown("$\\log y=\\alpha \\cdot \\log x$", mathjax=True)
+                    [
+                        dcc.Markdown("$\\log y=\\alpha \\cdot \\log x$", mathjax=True),
+                        dcc.Markdown("Or: $y = x^\\alpha$", mathjax=True),
+                    ]
                 ),
-                # html.Div(dcc.Markdown("Or, equivalently: $y = x^\\alpha$", mathjax=True)),
                 html.B("Regression Results"),
                 regression_results,
             ]
 
         return go.Figure(data=traces, layout=layout), narrative
-    
+
     @app.callback(
         Output("narrative-mode", "data"),
         Output("narrative-event-data", "data"),
@@ -85,9 +87,11 @@ def register_callbacks(app, df):
         def parse_event_info(row):
             heading = html.H4(row["event"] + ", " + row["country"])
             body = dcc.Markdown(row["narrative"])
-            footing = html.A("← Back to global data definitions", href="#", id="back-link")
+            footing = html.A(
+                "← Back to global data definitions", href="#", id="back-link"
+            )
             return dbc.CardBody([heading, body, footing])
-        
+
         if mode == "default":
             return dbc.CardBody(DEFAULT_TEXT)
 
