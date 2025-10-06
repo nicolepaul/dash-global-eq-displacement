@@ -18,7 +18,7 @@ def header():
             html.Em(
                 [
                     "Dashboard created by ",
-                    html.A("Nicole Paul", href="https://nicolepaul.io"),
+                    html.A("Nicole Paul", href="https://nicolepaul.io", target='_blank'),
                 ]
             ),
         ],

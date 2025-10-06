@@ -22,6 +22,6 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/dash-app
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/dash-global-eq-displacement
           docker build -t $IMAGE_NAME:latest .
           docker push $IMAGE_NAME:latest
