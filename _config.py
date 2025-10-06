@@ -30,7 +30,7 @@ DEFAULT_TEXT = dbc.CardBody(
                 html.Li(
                     [
                         html.B("Assisted: "),
-                        "This is the number of people who rreceived sheltering or housing assistance after the earthquake. Forms of assistance could include temporary or transitional housing, cash assistance for repairs or rebuilding, rental voucher, or replacement housing. Often, governments distribute this form of assistance based on housing damage, resulting in a high correlation between the reported damage and the reported number of people receiving assistance.",
+                        "This is the number of people who received some form sheltering or housing assistance after the earthquake. Forms of assistance could include temporary or transitional housing, cash assistance for repairs or rebuilding, rental voucher, or replacement housing. Often, governments distribute this form of assistance based on housing damage, resulting in a high correlation between the reported damage and the reported number of people receiving assistance. Monetary assistance is the most prevalent form, but amounts received are not necessarily sufficient to cover costs to repair or rebuild.",
                     ]
                 ),
             ]
