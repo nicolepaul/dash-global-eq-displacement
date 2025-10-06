@@ -32,6 +32,7 @@ def arrange_scatter(df, y_choice, x_choice):
             go.Scatter(
                 x=sub[x_choice],
                 y=sub[y_choice],
+                zorder=8,
                 mode="markers",
                 name=region,
                 customdata=sub.to_dict("records"),

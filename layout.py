@@ -6,7 +6,7 @@ from _config import *
 def header():
     return dbc.Card(
         [
-            html.H1("🌏🌎🌍 Population displacement after earthquakes"),
+            html.H1("Population displacement after earthquakes 🌏🌎🌍"),
             html.P(
                 """
                 This dashboard visualizes newly assembled data on population displacement
@@ -78,24 +78,24 @@ def regression_section():
                     html.P(),
                     html.H4("First-order analysis"),
                     html.P(
-                        "We can fit a simple linear regression model to approximate displacement based on damage."
+                        "We can fit a simple linear regression model to approximate displacement based on damage:"
                     ),
                 ]
             ),
             dbc.Row(
-                dbc.Col(
-                    dbc.Checkbox(
-                        id="regression-check",
-                        value=False,
-                        className="form-check-input",
-                        label="Fit OLS regression",
-                        style={
-                            "whiteSpace": "nowrap",
-                            "width": "100%",
-                            "border": "0px",
-                        },
+                [
+                    dcc.RadioItems(
+                        id="regression-radio",
+                        options=[
+                            {"label": "No regression", "value": "none"},
+                            {"label": "Run OLS without intercept", "value": "ols"},
+                            {"label": "Run OLS with intercept", "value": "ols_int"},
+                        ],
+                        value="none",  # Default selection
+                        inline=False,
+                        inputStyle={"margin-right": "8px", "margin-left": "8px"},
                     ),
-                )
+                ]
             ),
             dbc.Row(
                 html.Div(
