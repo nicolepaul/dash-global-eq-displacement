@@ -4,4 +4,6 @@ pandas==2.3.3
 numpy==2.3.3
 statsmodels==0.14.4
 scipy==1.15.3
+scikit-learn==1.7.2
+xgboost==3.0.5
 gunicorn==23.0.0

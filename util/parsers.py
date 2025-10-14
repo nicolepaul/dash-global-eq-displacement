@@ -1,11 +1,10 @@
 import pandas as pd
-
+from _config import *
 
 def get_data():
 
     # Read data
-    file_name = "data.csv"
-    data = pd.read_csv(file_name)
+    data = pd.read_csv(PATH_DATA)
 
     # Apply some transformations
     data["damaged*ahhs"] = data['damaged']*data['ahhs']
@@ -21,11 +20,11 @@ def get_data():
     metrics = {
         "evacuated": "Evacuated (peak)",
         "sheltered_peak": "Sheltered (peak)",
-        "sheltered_>1m": "Sheltered (>1mo)",
-        "sheltered_>3m": "Sheltered (>3mo)",
-        "sheltered_>6m": "Sheltered (>6mo)",
-        "needs": "Needs (~6mo)",
-        "assisted": "Assisted (~6mo)",
+        # "sheltered_>1m": "Sheltered (>1mo)",
+        # "sheltered_>3m": "Sheltered (>3mo)",
+        # "sheltered_>6m": "Sheltered (>6mo)",
+        "needs": "Protracted (~6mo)",
+        "assisted": "Assisted",
     }
 
     return data, factors, metrics

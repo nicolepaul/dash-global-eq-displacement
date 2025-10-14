@@ -67,3 +67,10 @@ footer {
     margin-top: 1rem;
     text-align: center;
 }
+
+.tab {
+    border: 1px solid #d6d6d6;
+    border-top: none;
+    border-radius: 0rem;
+    padding: 1.5rem;
+}

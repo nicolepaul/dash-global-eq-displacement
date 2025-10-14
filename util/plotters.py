@@ -1,25 +1,12 @@
 import numpy as np
 import plotly.graph_objs as go
 
-CATEGORICAL_COLORS = [
-    "#44aa98",
-    "#ab4498",
-    "#332389",
-    "#86ccec",
-    "#ddcc76",
-    "#cd6477",
-    "#882255",
-    "#117732",
-    "#666666",
-    "#212121",
-]
+from _config import *
 
 
 def arrange_scatter(df, y_choice, x_choice):
 
     regions = df["region"].unique()
-    countries = df["country"].unique()
-    events = df["event"]
     REGION_COLORS = {regions[i]: CATEGORICAL_COLORS[i] for i in range(len(regions))}
 
     df["log_x"] = np.log10(df[x_choice])

@@ -7,7 +7,7 @@ from util.analysis import run_regression
 from util.plotters import arrange_scatter
 
 
-def register_callbacks(app, df):
+def register_callbacks_damage(app, df):
 
     @app.callback(
         Output("scatter-graph", "figure"),
