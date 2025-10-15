@@ -9,7 +9,7 @@ from util.analysis import transform_variables
 from layout import main_layout
 from callback import register_callbacks, register_tab_callbacks
 
-def create_app():
+def create_app(production=True):
     app = dash.Dash(
         __name__,
         external_stylesheets=[dbc.themes.FLATLY, dbc.icons.FONT_AWESOME],
@@ -26,7 +26,7 @@ def create_app():
 
     app.layout = main_layout(xs, ys, df, drivers)
 
-    register_callbacks(app, df, drivers)
+    register_callbacks(app, df, drivers, production=production)
     register_tab_callbacks(app, xs, ys, df, drivers)
 
     return app

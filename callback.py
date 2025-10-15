@@ -7,9 +7,9 @@ from callbacks.callbacks_drivers import register_callbacks_drivers
 from callbacks.callbacks_contributors import register_callbacks_contributors
 
 
-def register_callbacks(app, df, drivers):
+def register_callbacks(app, df, drivers, production=True):
     register_callbacks_damage(app, df)
-    register_callbacks_drivers(app, df, drivers)
+    register_callbacks_drivers(app, df, drivers, production=production)
     register_callbacks_contributors(app)
 
 

@@ -40,6 +40,7 @@ EMPTY_FIG.update_layout(
 )
 
 CV = 5
+S = 3
 MIN_EVENT = 20
 
 BORDERLESS = {"style": {"border": "none", "boxShadow": "none"}}
