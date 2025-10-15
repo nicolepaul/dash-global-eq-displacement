@@ -11,7 +11,7 @@ from _config import *
 from util.analysis import mape_from_log
 
 
-def register_callbacks_drivers(app, df, drivers):
+def register_callbacks_drivers(app, df, drivers, production=True):
 
 
     @app.callback(
@@ -34,21 +34,39 @@ def register_callbacks_drivers(app, df, drivers):
         n_sample = len(sub)
         if n_sample < MIN_EVENT:
             return (
-                f"Insufficient events ({len(sub)}, need minimum {MIN_EVENT}).",
+                f"Insufficient events ({len(sub)}, need minimum {MIN_EVENT})",
                 EMPTY_FIG,
                 [],
             )
         X, y = sub[predictors], np.log1p(sub[metric])
 
         # Tune hyperparameters
+        params = None
         mape_scorer = make_scorer(mape_from_log, greater_is_better=False)
-        grid = GridSearchCV(
-        XGBRegressor(random_state=99),
-        param_grid={"max_depth": [2, 3, 4], "learning_rate": [0.01, 0.02, 0.1, 0.2], "min_child_weight": [2, 3]},
-            cv=CV, scoring=mape_scorer, n_jobs=1
-        )
-        grid.fit(X, y)
-        params = grid.best_params_
+        if production: # hard-coded to save computation time
+            if metric == 'sheltered_peak':
+                params = {'max_depth': 2, 'learning_rate': 0.1, 'min_child_weight': 2}
+            elif metric == 'evacuated':
+                params = {'max_depth': 2, 'learning_rate': 0.1, 'min_child_weight': 3} # technically not the best, but i think the optimal one was overfitting
+            elif metric == 'needs':
+                params = {'max_depth': 3, 'learning_rate': 0.01, 'min_child_weight': 2}
+            elif metric == 'assisted':
+                params = {'max_depth': 2, 'learning_rate': 0.2, 'min_child_weight': 2}
+            else:
+                return (
+                    f"Production version hyperparameters not configured for {metric}",
+                    EMPTY_FIG,
+                    [],
+                )
+
+        else:
+            grid = GridSearchCV(
+            XGBRegressor(random_state=99),
+            param_grid={"max_depth": [2, 3, 4], "learning_rate": [0.01, 0.02, 0.1, 0.2], "min_child_weight": [2, 3]},
+                cv=CV, scoring=mape_scorer, n_jobs=1
+            )
+            grid.fit(X, y)
+            params = grid.best_params_
         parm = [html.B('Model hyperparameters:'),
                 dbc.ListGroup(
             [
@@ -62,14 +80,6 @@ def register_callbacks_drivers(app, df, drivers):
         )]
 
         # Use CV with RFE to select features
-        # params = {
-        #     "learning_rate": 0.02,
-        #     "max_depth": 3,
-        #     "n_estimators": 100,
-        #     "random_state": 99,
-        #     "n_jobs": 1,
-        #     "min_child_weight": 2, 
-        # }
         model = XGBRegressor(**params)
         # cv = KFold(n_splits=CV, shuffle=True, random_state=22)
         cv = RepeatedKFold(n_splits=CV, n_repeats=5, random_state=22)
