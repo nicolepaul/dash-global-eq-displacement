@@ -87,13 +87,12 @@ def register_callbacks_drivers(app, df, drivers, production=True):
         rfecv.fit(X, y)
         selected = list(X.columns[rfecv.support_])
 
-        # Refit model
+        # Refit model if not in production mode
         final_model = XGBRegressor(**params)
         final_model.fit(X[selected], y)
         importances = final_model.feature_importances_
 
         # Evaluate model
-        final_model.fit(X[selected], y)
         y_pred = final_model.predict(X[selected])
         rmse_log = root_mean_squared_error(y, y_pred)
         r2_log = r2_score(y, y_pred)
