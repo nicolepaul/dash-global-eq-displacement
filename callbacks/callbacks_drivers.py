@@ -62,7 +62,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
             grid = GridSearchCV(
             XGBRegressor(random_state=99),
             param_grid={"max_depth": [2, 3, 4], "learning_rate": [0.01, 0.02, 0.1, 0.2], "min_child_weight": [2, 3]},
-                cv=CV, scoring=mape_scorer, n_jobs=-1
+                cv=CV, scoring=mape_scorer, n_jobs=1
             )
             grid.fit(X, y)
             params = grid.best_params_
@@ -83,7 +83,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
         cv = KFold(n_splits=CV, shuffle=True, random_state=22)
         if not production:
             cv = RepeatedKFold(n_splits=CV, n_repeats=S, random_state=22)
-        rfecv = RFECV(model, cv=cv, scoring=mape_scorer, step=1, n_jobs=-1)
+        rfecv = RFECV(model, cv=cv, scoring=mape_scorer, step=1, n_jobs=1)
         rfecv.fit(X, y)
         selected = list(X.columns[rfecv.support_])
 
