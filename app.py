@@ -3,7 +3,8 @@ from dash_bootstrap_templates import load_figure_template
 import dash_bootstrap_components as dbc
 
 from _config import *
-from util.parsers import get_data
+from util.parsers import get_data, get_drivers
+from util.analysis import transform_variables
 
 from layout import main_layout
 from callback import register_callbacks, register_tab_callbacks
@@ -11,7 +12,7 @@ from callback import register_callbacks, register_tab_callbacks
 def create_app():
     app = dash.Dash(
         __name__,
-        external_stylesheets=[dbc.themes.FLATLY],
+        external_stylesheets=[dbc.themes.FLATLY, dbc.icons.FONT_AWESOME],
         suppress_callback_exceptions=True,  
     )
 
@@ -20,11 +21,13 @@ def create_app():
     app.title = "Population displacement after earthquakes"
 
     df, xs, ys = get_data()
+    drivers = get_drivers()
+    df, drivers = transform_variables(df, drivers)
 
-    app.layout = main_layout(xs, ys, df)
+    app.layout = main_layout(xs, ys, df, drivers)
 
-    register_callbacks(app, df)
-    register_tab_callbacks(app, xs, ys, df)
+    register_callbacks(app, df, drivers)
+    register_tab_callbacks(app, xs, ys, df, drivers)
 
     return app
 

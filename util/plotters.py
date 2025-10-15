@@ -9,8 +9,8 @@ def arrange_scatter(df, y_choice, x_choice):
     regions = df["region"].unique()
     REGION_COLORS = {regions[i]: CATEGORICAL_COLORS[i] for i in range(len(regions))}
 
-    df["log_x"] = np.log10(df[x_choice])
-    df["log_y"] = np.log10(df[y_choice])
+    df["log_x"] = np.log1p(df[x_choice])
+    df["log_y"] = np.log1p(df[y_choice])
 
     traces = []
     for region in regions:

@@ -4,6 +4,7 @@ from dash import dcc, html
 import plotly.graph_objs as go
 
 PATH_DATA = os.path.join("assets", "data.csv")
+PATH_DRIVERS = os.path.join("assets", "drivers.csv")
 PATH_ACK = os.path.join("assets", "acknowledgments.csv")
 
 CATEGORICAL_COLORS = [
@@ -18,6 +19,8 @@ CATEGORICAL_COLORS = [
     "#666666",
     "#212121",
 ]
+
+FILL_ZERO = 0.4
 
 EMPTY_FIG = go.Figure()
 EMPTY_FIG.update_layout(

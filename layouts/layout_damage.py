@@ -37,8 +37,10 @@ def regression_section():
                         id="regression-radio",
                         options=[
                             {"label": "No regression", "value": "none"},
-                            {"label": "Run OLS without intercept", "value": "ols"},
                             {"label": "Run OLS with intercept", "value": "ols_int"},
+                            {"label": "Run RLM with intercept", "value": "rlm_int"},
+                            {"label": "Run OLS without intercept", "value": "ols"},
+                            {"label": "Run RLM without intercept", "value": "rlm"},
                         ],
                         value="none",  # Default selection
                         inline=False,
@@ -87,7 +89,7 @@ def event_narrative():
             dcc.Store(id="narrative-event-data", data=None),
             dbc.Card(id="event-narrative", body=True)
         ],
-        body=True
+        body=True,
     )
 
 

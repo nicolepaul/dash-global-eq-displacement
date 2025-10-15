@@ -44,7 +44,7 @@ def footer():
     )
 
 
-def main_layout(xs, ys, df):
+def main_layout(xs, ys, df, drivers):
     return dbc.Container(
         [
             dbc.Row([header()]),

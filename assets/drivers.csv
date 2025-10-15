@@ -1,0 +1,18 @@
+﻿variable,name,resolution,source,period,category,narrative,default,transform
+DESTROYED,Residents of destroyed homes,National,See Event data tab,,Environment,Coming soon,TRUE,log
+DAMAGED,Residents of damaged homes,National,See Event data tab,,Environment,Coming soon,TRUE,log
+GRID_SHDI,Subnational HDI,Gridded (30 arcsecond),[CIESIN 2022; GDL](https://www.earthdata.nasa.gov/data/catalog/sedac-ciesin-sedac-pmp-grdi-2010-2020-1.00),2018,Economic,Coming soon,TRUE,
+GRID_SMOD,Urban proportion,Gridded,[GHS-SMOD 2023](https://human-settlement.emergency.copernicus.eu/ghs_smod2023.php),2020,Demographic,Coming soon,TRUE,
+GRID_POP,Affected population,Gridded (1km),[WorldPop 2025](https://hub.worldpop.org/project/categories?id=3),2020,Demographic,Coming soon,TRUE,log
+GRID_IMR,Infant mortality rate,Gridded (30 arcsecond),[CIESIN 2022](https://www.earthdata.nasa.gov/data/catalog/sedac-ciesin-sedac-pmp-grdi-2010-2020-1.00),2015,Economic,Coming soon,TRUE,
+GRID_GRDI,Relative deprivation index,Gridded (30 arcsecond),[CIESIN 2022](https://www.earthdata.nasa.gov/data/catalog/sedac-ciesin-sedac-pmp-grdi-2010-2020-1.00),2010-2020,Economic,Coming soon,TRUE,
+GRID_GDPC,GDP per capita,Gridded,[Kummu et al 2025](https://doi.org/10.1038/s41597-025-04487-x),2022,Economic,Coming soon,TRUE,log
+GRID_SLOPE,Slope,Gridded,Received from Lana Todorovic (details tbd),,Environment,Coming soon,TRUE,
+TENURE_SECURITY,Tenure security,National,[UN SDG 1.4.2](https://unstats.un.org/sdgs/dataportal/database) and [Prindex](https://www.prindex.net/data/downloads/),,Social,Coming soon,TRUE,
+HDI,National HDI,National,[Global Data Lab](https://globaldatalab.org/wealth/table/gini/?levels=1),,Economic,Coming soon,TRUE,
+GINI,Gini coefficient,National,[OWID; World Bank](https://ourworldindata.org/grapher/economic-inequality-gini-index?country=USA~FRA~IDN~URY),,Economic,Coming soon,TRUE,
+PALMA,Palma ratio,National,[OWID; WID](https://ourworldindata.org/grapher/palma-ratio-s90s40-ratio?time=2023),,Economic,Coming soon,TRUE,
+GOVERNANCE,Governance index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Political,Coming soon,TRUE,
+SOCIOECONOMIC,Socioeconomic index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Economic,Coming soon,TRUE,
+UPROOTED,Uprooted people,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Political,Coming soon,TRUE,
+DEPENDENCY,Economic dependency index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Economic,Coming soon,TRUE,
