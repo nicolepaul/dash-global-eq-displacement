@@ -27,7 +27,7 @@ def create_app(production=True):
     app.layout = main_layout(xs, ys, df, drivers)
 
     register_callbacks(app, df, drivers, production=production)
-    register_tab_callbacks(app, xs, ys, df, drivers)
+    register_tab_callbacks(app, xs, ys, drivers)
 
     return app
 

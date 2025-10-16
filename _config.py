@@ -79,3 +79,32 @@ DEFAULT_TEXT = dbc.CardBody(
         ),
     ]
 )
+
+NARRATIVE_REGRESSION = (
+            html.P(),
+            "Supported linear regression models:",
+            html.Ul(
+                [
+                    html.Li("OLS: Ordinary least squares"),
+                    html.Li("RLM: Robust linear model"),
+                ]
+            ),
+        )
+
+NARRATIVE_DRIVERS = """This analysis fits machine learning models to predict the selected displacement metric 
+                using a minimal number of predictors. Different environmental, economic, political, social, 
+                and demographic displacement drivers can be selected as explanatory variables."""
+
+NARRATIVE_CORR = """This analysis is geared towards predictive models, which rely upon associations between different features 
+                and the outcome variable. Associations or correlations are not sufficient to identify causality. Including 
+                features that are highly correlated with one another can also lead to less stable model predictions."""
+
+NARRATIVE_FS = """To construct a practical predictive model, we seek to reduce any features that do not add meaningful predictive power. 
+                In some cases, this will eliminate variables that have no clear relationship with the outcome variable, and in other cases 
+                this might eliminate variables that are highly correlated with another variable already in the model."""
+NARRATIVE_RFE = """To identify which limited set of mobility drivers best predict different displacement outcomes, recursive
+                feature elimination (RFE) is performed. The RFE is run using a tree-based model (XGBoost), which 
+                avoids assumptions about linearity and is robust to the inclusion of correlated features."""
+NARRATIVE_FI = "A simple estimate of the feature importance for the selected variables is shown for the final XGBoost model."
+NARRATIVE_PDP = """This analysis is ultimately intended to fit a simpler linear regression style model. The partial
+                dependence plots help us understand whether the relationship between the predictors and the displacement                 metric is linear, or whether some nonlinear terms require consideration."""

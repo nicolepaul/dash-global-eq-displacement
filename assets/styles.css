@@ -18,6 +18,22 @@ h1, h2, h3, h4, h5 {
     margin-bottom: 0.75rem;
 }
 
+.accordion-button {
+    font-weight: 700;
+    color: #212121; 
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    
+}
+
+.accordion-button:before {
+    content: "\f05a";
+    padding-right: 1rem;
+    font-family: "FontAwesome" !important;
+    font-style: normal !important;
+    margin-left: 20px;
+}
+
 b {
     font-weight: 600;
 }

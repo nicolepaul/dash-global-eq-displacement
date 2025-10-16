@@ -20,37 +20,9 @@ def register_callbacks_damage(app, df):
         df_fit = df.copy()
         traces, layout = arrange_scatter(df_fit, y_choice, x_choice)
 
-        default_narrative = (
-            html.P(),
-            "Supported linear regression models:",
-            html.Ul(
-                [
-                    html.Li([html.B("OLS: "), "Ordinary least squares"]),
-                    html.Li([html.B("RLM: "), "Robust linear model"]),
-                ]
-            ),
-        )
+        narrative = NARRATIVE_REGRESSION
 
-        trace, narrative = None, default_narrative
-        if regression_option == "ols":
-            trace, narrative = run_regression(
-                df, x_choice, y_choice, method=regression_option
-            )
-            if trace:
-                traces.append(trace)
-        elif regression_option == "ols_int":
-            trace, narrative = run_regression(
-                df, x_choice, y_choice, method=regression_option
-            )
-            if trace:
-                traces.append(trace)
-        elif regression_option == "rlm":
-            trace, narrative = run_regression(
-                df, x_choice, y_choice, method=regression_option
-            )
-            if trace:
-                traces.append(trace)
-        elif regression_option == "rlm_int":
+        if regression_option != 'none':
             trace, narrative = run_regression(
                 df, x_choice, y_choice, method=regression_option
             )

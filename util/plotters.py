@@ -59,7 +59,8 @@ def arrange_corr_matx(sub, method="pearson"):
         zmin=-1,
         zmax=-1,
         color_continuous_scale='RdBu',
-        aspect="auto",
+        aspect="equal",
     )
-    fig.update_layout(margin=dict(l=40, r=20, t=40, b=40), height=600)
-    return dcc.Graph(figure=fig, style={"height": "600px"})
+    fig.update_traces(hovertemplate='%{x}, %{y}:<br><b>%{z:.0%}</b><extra></extra>')
+    fig.update_layout(coloraxis={'showscale': False})
+    return dcc.Graph(figure=fig, style={"height": "750px"})
