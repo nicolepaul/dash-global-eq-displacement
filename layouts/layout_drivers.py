@@ -47,9 +47,7 @@ def select_drivers(xs, ys, df, drivers):
                 style={"marginBottom": "1em"},
             ),
             dbc.Button(
-                "Run analysis",
-                id="analysis-btn",
-                className='load-button'
+                "Run analysis", id="analysis-btn", className="load-button", n_clicks=0
             ),
             html.Hr(),
             html.H4("Explanatory variables"),
@@ -80,48 +78,56 @@ def analysis_narrative():
     )
 
 
-def rfe_summary():
-    return dbc.Col(
-        [
-            html.H4("Recursive feature elimination"),
-            html.P(
-                """To identify which limited set of mobility drivers best predict different displacement outcomes, recursive
-                feature elimination (RFE) is performed. The RFE is run using a tree-based model (XGBoost), which 
-                avoids assumptions about linearity and is robust to the inclusion of correlated features."""
-            ),
-            html.Div(id="rfe-summary"),
-        ],
-    )
+# def rfe_summary():
+#     return dbc.Col(
+#         [
+#             html.H4("Recursive feature elimination"),
+#             html.P(
+#                 """To identify which limited set of mobility drivers best predict different displacement outcomes, recursive
+#                 feature elimination (RFE) is performed. The RFE is run using a tree-based model (XGBoost), which 
+#                 avoids assumptions about linearity and is robust to the inclusion of correlated features."""
+#             ),
+#             html.Div(id="rfe-summary"),
+#         ],
+#     )
 
 
-def rfe_importance():
-    return dbc.Col(
-        [
-            html.H4("Feature importance"),
-            html.P("A simple estimate of the feature importance for the selected variables is shown for the final XGBoost model."),
-            html.Div(id="rfe-feature-importance"),
-        ],
-    )
+# def rfe_importance():
+#     return dbc.Col(
+#         [
+#             html.H4("Feature importance"),
+#             html.P(
+#                 "A simple estimate of the feature importance for the selected variables is shown for the final XGBoost model."
+#             ),
+#             html.Div(id="rfe-feature-importance"),
+#         ],
+#     )
 
 
-def pdp_plots():
-    return dbc.Col(
-        [
-            html.H4("Partial dependence plots"),
-            html.P(
-                """This analysis is ultimately intended to fit a simpler linear regression style model. The partial
-                dependence plots help us understand whether the relationship between the predictors and the displacement 
-                metric is linear, or whether some nonlinear terms require consideration."""
-            ),
-            html.Div(id="rfe-pdp-container"),
-        ]
-    )
+# def pdp_plots():
+#     return dbc.Col(
+#         [
+#             html.H4("Partial dependence plots"),
+#             html.P(
+#                 """This analysis is ultimately intended to fit a simpler linear regression style model. The partial
+#                 dependence plots help us understand whether the relationship between the predictors and the displacement 
+#                 metric is linear, or whether some nonlinear terms require consideration."""
+#             ),
+#             html.Div(id="rfe-pdp-container"),
+#         ]
+#     )
 
 
-def corr_summary():
-    return dbc.Col([html.H4("Correlation analysis"),
-                    html.P("Linear regression models are not robust to correlated features, so we should be careful about including them."),
-                    html.Div(id="corr-container")])
+# def corr_summary():
+#     return dbc.Col(
+#         [
+#             html.H4("Correlation analysis"),
+#             html.P(
+#                 "Linear regression models are not robust to correlated features, so we should be careful about including them."
+#             ),
+#             html.Div(id="corr-container"),
+#         ]
+#     )
 
 
 # def layout_drivers(xs, ys, df):
@@ -142,15 +148,11 @@ def layout_drivers(xs, ys, df, drivers):
                 [
                     select_drivers(xs, ys, df, drivers),
                     dbc.Col(
-                        dcc.Loading(type="circle",children=[
-                            rfe_summary(),
-                            html.Hr(),
-                            rfe_importance(),
-                            html.Hr(),
-                            pdp_plots(),
-                            html.Hr(),
-                            corr_summary(),
-                        ])
+                        dcc.Loading(
+                            id="loading-drivers-results",
+                            type="default",
+                            children=html.Div(id="drivers-results-container"),
+                        )
                     ),
                 ]
             ),

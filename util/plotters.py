@@ -1,5 +1,6 @@
 import numpy as np
 import plotly.graph_objs as go
+import plotly.express as px
 
 from _config import *
 
@@ -49,3 +50,16 @@ def arrange_scatter(df, y_choice, x_choice):
 
     return traces, layout
 
+
+def arrange_corr_matx(sub, method="pearson"):
+    corr_df = sub.corr(method=method)
+    fig = px.imshow(
+        corr_df,
+        text_auto='.0%',
+        zmin=-1,
+        zmax=-1,
+        color_continuous_scale='RdBu',
+        aspect="auto",
+    )
+    fig.update_layout(margin=dict(l=40, r=20, t=40, b=40), height=600)
+    return dcc.Graph(figure=fig, style={"height": "600px"})

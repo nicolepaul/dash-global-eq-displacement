@@ -1,150 +1,96 @@
-from dash import Input, Output, State, html, dcc, ALL, MATCH, no_update
+import time
 import numpy as np
-import plotly.graph_objs as go
-from xgboost import XGBRegressor
-from sklearn.model_selection import KFold, RepeatedKFold, GridSearchCV
-from sklearn.metrics import make_scorer, root_mean_squared_error, r2_score
-from sklearn.feature_selection import RFECV
-from sklearn.inspection import partial_dependence
+from dash import Input, Output, State, html, dcc, ALL, ctx, no_update
+
+from util.plotters import arrange_corr_matx
+from util.analysis import run_rfe
 from _config import *
-from util.analysis import mape_from_log
 
 
 def register_callbacks_drivers(app, df, drivers, production=True):
 
+    @app.callback(
+        Output("analysis-btn", "disabled", allow_duplicate=True),
+        Input("analysis-btn", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def disable_btn(n):
+        if n:
+            return True
+        return no_update
 
     @app.callback(
-        Output("rfe-summary", "children"),
-        Output("rfe-feature-importance", "children"),
-        Output("rfe-pdp-container", "children"),
+        Output("drivers-results-container", "children"),
+        Output("analysis-btn", "disabled"),
         Input("analysis-btn", "n_clicks"),
+        Input("tab-content", "children"),
         State("rfe-metric-dropdown", "value"),
         State({"type": "driver-checkbox", "index": ALL}, "value"),
         State({"type": "driver-checkbox", "index": ALL}, "id"),
-        prevent_initial_call=True,
+        prevent_initial_call=False,
     )
-    def run_rfe(n_clicks, metric, ids, values):
+    def _run_analysis_and_write_token(n_clicks, tab_children, metric, values, ids):
 
-        # Parse inputs
-        predictors = [val["index"] for b, val in zip(ids, values) if b]
+        triggered = ctx.triggered[0]["prop_id"] if ctx.triggered else None
+
+        # Get predictors
+        predictors = [id_["index"] for val, id_ in zip(values, ids) if val]
+
+        # On load: correlation
+        if not predictors or not triggered.startswith("analysis-btn"):
+            predictors = [id_["index"] for val, id_ in zip(values, ids) if val]
+            if not predictors:
+                return (
+                    html.P("No explanatory variables selected for correlation matrix."),
+                    False,
+                )
+            corr_vars = [
+                c
+                for c in predictors
+                if c in df.columns and np.issubdtype(df[c].dtype, np.number)
+            ]
+            if not corr_vars:
+                return (
+                    html.P("No numeric variables available for correlation matrix."),
+                    False,
+                )
+            fig_corr = arrange_corr_matx(df[corr_vars])
+            return html.Div([html.H4("Correlation analysis"), fig_corr]), False
+
+        # On 'Run analysis' click: RFE
         if not metric or not predictors:
-            return "Please select a metric and predictors.", EMPTY_FIG, []
+            return (
+                html.P(
+                    "Please select a metric and predictors before running analysis."
+                ),
+                False,
+            )
         sub = df[[metric] + predictors].dropna()
         n_sample = len(sub)
         if n_sample < MIN_EVENT:
             return (
-                f"Insufficient events ({len(sub)}, need minimum {MIN_EVENT})",
-                EMPTY_FIG,
-                [],
-            )
-        X, y = sub[predictors], np.log1p(sub[metric])
-
-        # Tune hyperparameters
-        params = None
-        mape_scorer = make_scorer(mape_from_log, greater_is_better=False)
-        if production: # hard-coded to save computation time
-            if metric == 'sheltered_peak':
-                params = {'max_depth': 2, 'learning_rate': 0.1, 'min_child_weight': 2}
-            elif metric == 'evacuated':
-                params = {'max_depth': 2, 'learning_rate': 0.1, 'min_child_weight': 3} # technically not the best, but i think the optimal one was overfitting
-            elif metric == 'needs':
-                params = {'max_depth': 3, 'learning_rate': 0.01, 'min_child_weight': 2}
-            elif metric == 'assisted':
-                params = {'max_depth': 2, 'learning_rate': 0.2, 'min_child_weight': 2}
-            else:
-                return (
-                    f"Production version hyperparameters not configured for {metric}",
-                    EMPTY_FIG,
-                    [],
-                )
-
-        else:
-            grid = GridSearchCV(
-            XGBRegressor(random_state=99),
-            param_grid={"max_depth": [2, 3, 4], "learning_rate": [0.01, 0.02, 0.1, 0.2], "min_child_weight": [2, 3]},
-                cv=CV, scoring=mape_scorer, n_jobs=1
-            )
-            grid.fit(X, y)
-            params = grid.best_params_
-        parm = [html.B('Model hyperparameters:'),
-                dbc.ListGroup(
-            [
-                dbc.ListGroupItem(f"Max depth = {params['max_depth']}" if params['max_depth'] is not None else ""),
-                dbc.ListGroupItem(f"Learning rate = {params['learning_rate']}" if params['learning_rate'] is not None else ""),
-                dbc.ListGroupItem(
-                    f"Min child weight = {params['min_child_weight']}" if params['min_child_weight'] is not None else ""
+                html.Div(
+                    f"Insufficient events ({n_sample}, need minimum {MIN_EVENT})."
                 ),
-            ],
-            flush=True,
-        )]
+                False,
+            )
 
-        # Use CV with RFE to select features
-        model = XGBRegressor(**params)
-        cv = KFold(n_splits=CV, shuffle=True, random_state=22)
-        if not production:
-            cv = RepeatedKFold(n_splits=CV, n_repeats=S, random_state=22)
-        rfecv = RFECV(model, cv=cv, scoring=mape_scorer, step=1, n_jobs=1)
-        rfecv.fit(X, y)
-        selected = list(X.columns[rfecv.support_])
+        try:
+            summary, plot_feature, plot_pdp = run_rfe(drivers, sub, metric, predictors)
+        except Exception as e:
+            return html.Div([html.P("Error running analysis"), html.Pre(str(e))]), False
 
-        # Refit model if not in production mode
-        final_model = XGBRegressor(**params)
-        final_model.fit(X[selected], y)
-        importances = final_model.feature_importances_
-
-        # Evaluate model
-        y_pred = final_model.predict(X[selected])
-        rmse_log = root_mean_squared_error(y, y_pred)
-        r2_log = r2_score(y, y_pred)
-        mdape = mape_from_log(y, y_pred)
-        eval = [html.B('Model performance:'),
-                dbc.ListGroup(
+        results = html.Div(
             [
-                dbc.ListGroupItem(f"MdAPE = {mdape:.3f}" if mdape is not None else ""),
-                dbc.ListGroupItem(f"RMSE (log) = {rmse_log:.3f}" if rmse_log is not None else ""),
-                dbc.ListGroupItem(
-                    f"R² (log) = {r2_log:.3f}" if r2_log is not None else ""
-                ),
-            ],
-            flush=True,
-        )]
-
-        # Feature importance plot; TODO: improve tooltip, show percentages
-        fig_imp = go.Figure([go.Bar(x=importances, y=selected, orientation="h")])
-        fig_imp.update_layout(
-            yaxis=dict(autorange="reversed"),
+                html.H4("Recursive feature elimination"),
+                html.Div(summary),
+                html.Hr(),
+                html.H4("Feature importance"),
+                plot_feature,
+                html.Hr(),
+                html.H4("Partial dependence plots"),
+                html.Div(plot_pdp),
+            ]
         )
-        fig_imp_div = dcc.Graph(figure=fig_imp, style={"height": "300px"})
 
-        # Partial dependence plots; TODO: improve tooltip, consider markers
-        pdp_children = []
-        if not selected:
-            return [
-                html.P("No features were selected. Try different predictors.")
-            ], fig_imp, []
-        else:
-            for feat in selected:
-                pred = partial_dependence(final_model, X[selected], feat)
-                avg, grid = pred['average'], pred['grid_values']
-
-                fig = go.Figure(
-                    go.Scatter(x=grid[0], y=avg[0], mode="lines", name=f"PDP: {feat}")
-                )
-                fig.update_layout(
-                    title=drivers.loc[drivers.variable==feat, 'name'].values[0],
-                    margin=dict(l=40, r=20, t=30, b=30),
-                    height=300,
-                )
-
-                pdp_children.append(
-                    dcc.Graph(figure=fig, style={"height": "300px"})
-                )
-
-        summary = [
-            html.P(f"Number of events: {n_sample}"),
-            html.P(f"Selected {len(selected)} features: {', '.join(selected)}"),
-            dbc.Row([dbc.Col(parm), dbc.Col(eval)])
-
-        ]
-
-        return summary, fig_imp_div, pdp_children
+        return results, False
