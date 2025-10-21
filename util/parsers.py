@@ -24,10 +24,7 @@ def get_data():
     metrics = {
         "evacuated": "Evacuated (peak)",
         "sheltered_peak": "Sheltered (peak)",
-        # "sheltered_>1m": "Sheltered (>1mo)",
-        # "sheltered_>3m": "Sheltered (>3mo)",
-        # "sheltered_>6m": "Sheltered (>6mo)",
-        "needs": "Protracted (~6mo)",
+        "protracted": "Protracted (~6mo)",
         "assisted": "Assisted",
     }
 
@@ -37,6 +34,6 @@ def get_data():
 
 def get_drivers():
 
-    drivers = pd.read_csv(PATH_DRIVERS)
+    drivers = pd.read_csv(PATH_DRIVERS) #.sort_values(by=['category', 'name'])
 
     return drivers

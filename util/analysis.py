@@ -11,16 +11,19 @@ from sklearn.feature_selection import RFECV
 from sklearn.inspection import partial_dependence
 
 from _config import *
+from util.plotters import plot_model_eval
 
 
 def transform_variables(df, drivers):
     for i, row in drivers.iterrows():
-        if row['transform'] == 'log':
+        if row["transform"] == "log":
             df[row.variable] = np.log1p(df[row.variable])
-            drivers.loc[i, 'name'] = 'log(' + drivers.loc[i, 'name'] + ')'
+            drivers.loc[i, "name"] = "log(" + drivers.loc[i, "name"] + ")"
     return df, drivers
 
+
 def run_regression(df, x_col, y_col, method="ols", add_trace=True):
+    # TODO: Include some evaluation metric or visual to indicate predictive performance beyond R2
 
     N = 200
 
@@ -29,45 +32,45 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
 
     eqn = None
     lm_fit = None
-    color, style = 'black', 'dash'
+    color, style = "black", "dash"
     if method == "ols":
         lm = smf.ols(formula="log_y ~ log_x - 1", data=df)
         lm_fit = lm.fit()
         eqn = html.Div(
-                    [
-                        dcc.Markdown("$\\log y=\\beta \\cdot \\log x$", mathjax=True),
-                        dcc.Markdown("Or, $y = x^\\beta$", mathjax=True),
-                    ]
-                )
+            [
+                dcc.Markdown("$\\log y=\\beta \\cdot \\log x$", mathjax=True),
+                dcc.Markdown("Or, $y = x^\\beta$", mathjax=True),
+            ]
+        )
     elif method == "ols_int":
         lm = smf.ols(formula="log_y ~ log_x", data=df)
         lm_fit = lm.fit()
         eqn = html.Div(
-                    [
-                        dcc.Markdown("$\\log y=\\beta \\cdot \\log x + \\alpha$", mathjax=True),
-                        dcc.Markdown("Or, $y = e^{\\alpha}x^{\\beta}$", mathjax=True),
-                    ]
-                )
+            [
+                dcc.Markdown("$\\log y=\\beta \\cdot \\log x + \\alpha$", mathjax=True),
+                dcc.Markdown("Or, $y = e^{\\alpha}x^{\\beta}$", mathjax=True),
+            ]
+        )
     elif method == "rlm":
         lm = smf.rlm(formula="log_y ~ log_x - 1", data=df)
         lm_fit = lm.fit()
         eqn = html.Div(
-                    [
-                        dcc.Markdown("$\\log y=\\beta \\cdot \\log x$", mathjax=True),
-                        dcc.Markdown("Or, $y = x^\\beta$", mathjax=True),
-                    ]
-                )
-        color, style = 'darkred', 'dot'
+            [
+                dcc.Markdown("$\\log y=\\beta \\cdot \\log x$", mathjax=True),
+                dcc.Markdown("Or, $y = x^\\beta$", mathjax=True),
+            ]
+        )
+        color, style = "darkred", "dot"
     elif method == "rlm_int":
         lm = smf.rlm(formula="log_y ~ log_x", data=df)
         lm_fit = lm.fit()
         eqn = html.Div(
-                    [
-                        dcc.Markdown("$\\log y=\\beta \\cdot \\log x + \\alpha$", mathjax=True),
-                        dcc.Markdown("Or, $y = e^{\\alpha}x^{\\beta}$", mathjax=True),
-                    ]
-                )
-        color, style = 'darkred', 'dot'
+            [
+                dcc.Markdown("$\\log y=\\beta \\cdot \\log x + \\alpha$", mathjax=True),
+                dcc.Markdown("Or, $y = e^{\\alpha}x^{\\beta}$", mathjax=True),
+            ]
+        )
+        color, style = "darkred", "dot"
     else:
         raise NotImplementedError(f"Method '{method}' not supported yet.")
 
@@ -101,7 +104,7 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
     # Define trace
     trace = None
     if add_trace:
-        log_x = np.linspace(np.log1p(FILL_ZERO), df['log_x'].max(), N)
+        log_x = np.linspace(np.log1p(FILL_ZERO), df["log_x"].max(), N)
         y_hat = lm_fit.predict(exog=dict(log_x=log_x))
 
         trace = go.Scatter(
@@ -110,17 +113,19 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
             mode="lines",
             name=f"{method.upper()} (β={beta:.3f})",
             line=dict(color=color, dash=style),
-            hoverinfo='skip',
+            hoverinfo="skip",
             zorder=5,
         )
 
     return trace, narrative
+
 
 def mape_from_log(y_true_log, y_pred_log):
     y_true = np.expm1(y_true_log)
     y_pred = np.expm1(y_pred_log)
     mask = y_true != 0
     return np.median(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask]))
+
 
 def run_rfe(drivers, sub, metric, predictors, production=True):
 
@@ -129,15 +134,47 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
     # Tune hyperparameters
     params = None
     mape_scorer = make_scorer(mape_from_log, greater_is_better=False)
-    if production: # hard-coded to save computation time
-        if metric == 'sheltered_peak':
-            params = {'max_depth': 2, 'learning_rate': 0.1, 'min_child_weight': 2}
-        elif metric == 'evacuated':
-            params = {'max_depth': 2, 'learning_rate': 0.1, 'min_child_weight': 3} # technically not the best, but i think the optimal one was overfitting
-        elif metric == 'needs':
-            params = {'max_depth': 3, 'learning_rate': 0.01, 'min_child_weight': 2}
-        elif metric == 'assisted':
-            params = {'max_depth': 2, 'learning_rate': 0.2, 'min_child_weight': 2}
+    if production:  # hard-coded to save computation time
+        if metric == "sheltered_peak":
+            params = {
+                "n_estimators": 50,
+                "max_depth": 3,
+                "learning_rate": 0.3,
+                "reg_alpha": 0.1,
+                "reg_lambda": 5,
+                "gamma": 0.1,
+                "min_child_weight": 5,
+            } 
+        elif metric == "evacuated":
+            params = {
+                "n_estimators": 100,
+                "max_depth": 4,
+                "learning_rate": 0.3,
+                "reg_alpha": 0.1,
+                "reg_lambda": 5,
+                "gamma": 0.1,
+                "min_child_weight": 3,
+            } 
+        elif metric == "protracted":
+            params = {
+                "n_estimators": 50,
+                "max_depth": 2,
+                "learning_rate": 0.1,
+                "reg_alpha": 1,
+                "reg_lambda": 10,
+                "gamma": 0.5,
+                "min_child_weight": 5,
+            } 
+        elif metric == "assisted":
+            params = {
+                "n_estimators": 50,
+                "max_depth": 3,
+                "learning_rate": 0.2,
+                "reg_alpha": 0.1,
+                "reg_lambda": 5,
+                "gamma": 0.2,
+                "min_child_weight": 5,
+            } 
         else:
             return (
                 f"Production version hyperparameters not configured for {metric}",
@@ -147,23 +184,67 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
 
     else:
         grid = GridSearchCV(
-        XGBRegressor(random_state=99),
-        param_grid={"max_depth": [2, 3, 4], "learning_rate": [0.01, 0.02, 0.1, 0.2], "min_child_weight": [2, 3]},
-            cv=CV, scoring=mape_scorer, n_jobs=1
+            XGBRegressor(random_state=99),
+            param_grid={
+                "n_estimators": [50, 100],
+                "max_depth": [2, 3, 4],
+                "learning_rate": [0.1, 0.2, 0.3],
+                "reg_alpha": [0.1, 1],
+                "reg_lambda": [5, 10],
+                "gamma": [0.1, 0.2, 0.5],
+                "min_child_weight": [3, 5],
+            },
+            cv=CV,
+            scoring=mape_scorer,
+            n_jobs=1,
         )
         grid.fit(X, y)
         params = grid.best_params_
-    parm = [html.B('Model hyperparameters:'),
-            dbc.ListGroup(
+    parm = dbc.Row(
         [
-            dbc.ListGroupItem(f"Max depth = {params['max_depth']}" if params['max_depth'] is not None else ""),
-            dbc.ListGroupItem(f"Learning rate = {params['learning_rate']}" if params['learning_rate'] is not None else ""),
-            dbc.ListGroupItem(
-                f"Min child weight = {params['min_child_weight']}" if params['min_child_weight'] is not None else ""
+            html.B("Model hyperparameters:"),
+            dbc.ListGroup(
+                [
+                    dbc.ListGroupItem(
+                        f"Number of estimators = {params['n_estimators']}"
+                        if params["n_estimators"] is not None
+                        else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Max depth = {params['max_depth']}"
+                        if params["max_depth"] is not None
+                        else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Learning rate = {params['learning_rate']}"
+                        if params["learning_rate"] is not None
+                        else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Regularization α = {params['reg_alpha']}"
+                        if params["reg_alpha"] is not None
+                        else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Regularization λ = {params['reg_lambda']}"
+                        if params["reg_lambda"] is not None
+                        else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Gamma = {params['gamma']}"
+                        if params["gamma"] is not None
+                        else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Min child weight = {params['min_child_weight']}"
+                        if params["min_child_weight"] is not None
+                        else ""
+                    ),
+                ],
+                flush=True,
             ),
-        ],
-        flush=True,
-    )]
+        ]
+    )
 
     # Use CV with RFE to select features
     model = XGBRegressor(**params)
@@ -173,6 +254,25 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
     rfecv = RFECV(model, cv=cv, scoring=mape_scorer, step=1, n_jobs=1)
     rfecv.fit(X, y)
     selected = list(X.columns[rfecv.support_])
+
+    # Arrange text summary
+    summ = dbc.Row(
+        [
+            html.P(),
+            dbc.ListGroup(
+                [
+                    dbc.ListGroupItem(f"Number of events: {len(sub)}"),
+                    dbc.ListGroupItem(f"Number of cross-validation folds: {CV}"),
+                ]
+            ),
+            html.P(),
+            html.B(f"Selected {len(selected)} feature(s):"),
+            dbc.ListGroup(
+                [dbc.ListGroupItem(sel) for sel in selected],
+                flush=True,
+            ),
+        ]
+    )
 
     # Refit model if not in production mode
     final_model = XGBRegressor(**params)
@@ -184,55 +284,81 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
     rmse_log = root_mean_squared_error(y, y_pred)
     r2_log = r2_score(y, y_pred)
     mdape = mape_from_log(y, y_pred)
-    eval = [html.B('Model performance:'),
-            dbc.ListGroup(
+    bias = np.mean(y_pred - y)
+    eval = dbc.Row(
         [
-            dbc.ListGroupItem(f"MdAPE = {mdape:.3f}" if mdape is not None else ""),
-            dbc.ListGroupItem(f"RMSE (log) = {rmse_log:.3f}" if rmse_log is not None else ""),
-            dbc.ListGroupItem(
-                f"R² (log) = {r2_log:.3f}" if r2_log is not None else ""
+            html.B("Model performance:"),
+            dbc.ListGroup(
+                [
+                    dbc.ListGroupItem(
+                        f"MdAPE = {mdape:.3f}" if mdape is not None else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"RMSE (log) = {rmse_log:.3f}" if rmse_log is not None else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"R² (log) = {r2_log:.3f}" if r2_log is not None else ""
+                    ),
+                    dbc.ListGroupItem(
+                        f"Bias (log) = {bias:.3f}" if bias is not None else ""
+                    ),
+                ],
+                flush=True,
             ),
-        ],
-        flush=True,
-    )]
-
-    # Feature importance plot; TODO: improve tooltip, show percentages
-    fig_imp = go.Figure([go.Bar(x=importances, y=selected, orientation="h")])
-    fig_imp.update_layout(
-        yaxis=dict(autorange="reversed"),
+        ]
     )
-    fig_feature = dcc.Graph(figure=fig_imp, style={"height": "300px"})
+    fig_eval_log = plot_model_eval(
+        y, y_pred
+    )  # .update_layout(title='Model evaluation (log)')
+    fig_eval = plot_model_eval(
+        np.expm1(y), np.expm1(y_pred)
+    )  # .update_layout(title='Model evaluation')
+
+    # Feature importance plot
+    fig_imp = go.Figure(
+        [
+            go.Bar(
+                x=importances,
+                y=selected,
+                orientation="h",
+                hovertemplate="<b>%{y}: </b>%{x:.1%}<extra></extra>",
+            )
+        ]
+    )
+    fig_imp.update_layout(yaxis=dict(autorange="reversed"))
+    fig_feature = dcc.Graph(figure=fig_imp, style={"height": "400px"})
 
     # Partial dependence plots; TODO: improve tooltip, consider markers
     pdp_children = []
     if not selected:
-        return [
-            html.P("No features were selected. Try different predictors.")
-        ], fig_imp, []
+        return (
+            [html.P("No features were selected. Try different predictors.")],
+            fig_imp,
+            [],
+        )
     else:
         for feat in selected:
             pred = partial_dependence(final_model, X[selected], feat)
-            avg, grid = pred['average'], pred['grid_values']
+            avg, grid = pred["average"], pred["grid_values"]
 
             fig = go.Figure(
                 go.Scatter(x=grid[0], y=avg[0], mode="lines", name=f"PDP: {feat}")
             )
             fig.update_layout(
-                title=drivers.loc[drivers.variable==feat, 'name'].values[0],
+                title=drivers.loc[drivers.variable == feat, "name"].values[0],
                 margin=dict(l=40, r=20, t=30, b=30),
                 height=300,
             )
 
-            pdp_children.append(
-                dcc.Graph(figure=fig, style={"height": "300px"})
-            )
+            pdp_children.append(dcc.Graph(figure=fig, style={"height": "300px"}))
 
     summary = [
-        html.P(f"Number of events: {len(sub)}"),
-        html.P(f"Selected {len(selected)} features: {', '.join(selected)}"),
-        dbc.Row([dbc.Col(parm), dbc.Col(eval)])
-
+        dbc.Row(
+            [
+                dbc.Col([summ, html.P(), parm, html.P(), eval]),
+                dbc.Col(dcc.Graph(figure=fig_eval)),
+            ]
+        ),
     ]
 
     return summary, fig_feature, pdp_children
-

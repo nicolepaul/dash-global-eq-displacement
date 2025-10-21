@@ -48,9 +48,6 @@ def summary_default(drivers, fig_corr):
             html.H4("Correlation analysis"),
             html.P(NARRATIVE_CORR),
             fig_corr,
-            html.Hr(),
-            html.H4("Mutual information"),
-            html.P("Coming soon!"),
         ]
     )
 
@@ -111,7 +108,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
         # Get predictors
         predictors = [id_["index"] for val, id_ in zip(values, ids) if val]
 
-        # On load: correlation
+        # On load or 'Explore dirvers' click: correlation
         if (not predictors or not triggered.startswith("analysis-btn")) | triggered.startswith("explore-btn"):
             predictors = [id_["index"] for val, id_ in zip(values, ids) if val]
             if not predictors:
@@ -129,7 +126,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
                     html.P("No numeric variables available for correlation matrix."),
                     False,
                 )
-            fig_corr = arrange_corr_matx(df[corr_vars])
+            fig_corr = arrange_corr_matx(df[[metric] + corr_vars].copy(), metric, drivers)
             return summary_default(drivers, fig_corr), False
 
         # On 'Run analysis' click: RFE
@@ -151,7 +148,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
             )
 
         try:
-            summary, plot_feature, plot_pdp = run_rfe(drivers, sub, metric, predictors)
+            summary, plot_feature, plot_pdp = run_rfe(drivers, sub, metric, predictors, production=True)
         except Exception as e:
             return html.Div([html.P("Error running analysis"), html.Pre(str(e))]), False
 

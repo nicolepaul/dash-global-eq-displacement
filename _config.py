@@ -92,8 +92,8 @@ NARRATIVE_REGRESSION = (
         )
 
 NARRATIVE_DRIVERS = """This analysis fits machine learning models to predict the selected displacement metric 
-                using a minimal number of predictors. Different environmental, economic, political, social, 
-                and demographic displacement drivers can be selected as explanatory variables."""
+                using a minimal number of predictors. Different environmental, economic, demographic, social, 
+                and political drivers can be selected as explanatory variables."""
 
 NARRATIVE_CORR = """This analysis is geared towards predictive models, which rely upon associations between different features 
                 and the outcome variable. Associations or correlations are not sufficient to identify causality. Including 
