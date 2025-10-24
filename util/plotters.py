@@ -187,7 +187,7 @@ def plot_mutual_information(sub, metric):
         orientation="h",
     )
 
-    fig.update_traces(hovertemplate="%<b>{y}:</b><br>%{x:.0%}<extra></extra>")
+    fig.update_traces(hovertemplate="<b>%{y}:</b><br>%{x:.0%}<extra></extra>")
 
     fig.update_layout(
         yaxis_title=None

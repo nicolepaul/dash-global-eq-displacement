@@ -158,22 +158,22 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
         elif metric == "evacuated":
             params = {
                 "n_estimators": 50,
-                "max_depth": 3,
+                "max_depth": 2,
                 "learning_rate": 0.3,
                 "reg_alpha": 0.1,
                 "reg_lambda": 1,
                 "gamma": 0.3,
-                "min_child_weight": 3,
+                "min_child_weight": 5,
             } 
         elif metric == "protracted":
             params = {
                 "n_estimators": 50,
                 "max_depth": 3,
-                "learning_rate": 0.2,
+                "learning_rate": 0.3,
                 "reg_alpha": 0.1,
                 "reg_lambda": 1,
                 "gamma": 0.3,
-                "min_child_weight": 3,
+                "min_child_weight": 5,
             } 
         elif metric == "assisted":
             params = {
@@ -199,9 +199,9 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
                 "n_estimators": [50],
                 "max_depth": [2, 3, 4],
                 "learning_rate": [0.1, 0.2, 0.3],
-                "reg_alpha": [0.1, 0.5],
-                "reg_lambda": [1],
-                "gamma": [0.1, 0.3],
+                "reg_alpha": [0.1, 1],
+                "reg_lambda": [1, 10],
+                "gamma": [0.1, 0.3, 0.5],
                 "min_child_weight": [3, 5],
             },
             cv=CV,
