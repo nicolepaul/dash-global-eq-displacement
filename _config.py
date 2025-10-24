@@ -97,7 +97,12 @@ NARRATIVE_DRIVERS = """This analysis fits machine learning models to predict the
 
 NARRATIVE_CORR = """This analysis is geared towards predictive models, which rely upon associations between different features 
                 and the outcome variable. Associations or correlations are not sufficient to identify causality. Including 
-                features that are highly correlated with one another can also lead to less stable model predictions."""
+                features that are highly correlated with one another can also lead to less stable model predictions. For example, 
+                one might reasonably reduce features that have an absolute correlation coefficient above 80%."""
+NARRATIVE_HIER = """This analysis uses correlations to group the explanatory drivers into clusters. For example, one might use this 
+                analysis to assign natural clusters (e.g., income inequality, development level) and select one or two features in each."""
+NARRATIVE_MI = """Mutual information captures the association strength between the explanatory variables and the selected displacement metric, 
+                considering both linear and nonlinear relationships. For example, one might only select features ranking in the top half."""
 
 NARRATIVE_FS = """To construct a practical predictive model, we seek to reduce any features that do not add meaningful predictive power. 
                 In some cases, this will eliminate variables that have no clear relationship with the outcome variable, and in other cases 
@@ -108,3 +113,6 @@ NARRATIVE_RFE = """To identify which limited set of mobility drivers best predic
 NARRATIVE_FI = "A simple estimate of the feature importance for the selected variables is shown for the final XGBoost model."
 NARRATIVE_PDP = """This analysis is ultimately intended to fit a simpler linear regression style model. The partial
                 dependence plots help us understand whether the relationship between the predictors and the displacement                 metric is linear, or whether some nonlinear terms require consideration."""
+
+CORR_THRESH = 0.8
+MI_QUANT = 0.5

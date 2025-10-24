@@ -2,7 +2,7 @@ import numpy as np
 import dash_bootstrap_components as dbc
 from dash import Input, Output, State, html, dcc, ALL, ctx, no_update
 
-from util.plotters import arrange_corr_matx
+from util.plotters import plot_corr_matx, plot_hierarchical_cluster, plot_mutual_information
 from util.analysis import run_rfe
 from _config import *
 
@@ -39,7 +39,7 @@ def drivers_table(drivers):
     )
 
 
-def summary_default(drivers, fig_corr):
+def summary_default(drivers, fig_corr, fig_cluster, fig_mi):
 
     narrative = html.Div(
         [
@@ -48,6 +48,14 @@ def summary_default(drivers, fig_corr):
             html.H4("Correlation analysis"),
             html.P(NARRATIVE_CORR),
             fig_corr,
+            html.Hr(),
+            html.H4('Hierarchical clustering'),
+            html.P(NARRATIVE_HIER),
+            fig_cluster,
+            html.Hr(),
+            html.H4('Mutual information'),
+            html.P(NARRATIVE_MI),
+            fig_mi,
         ]
     )
 
@@ -126,8 +134,20 @@ def register_callbacks_drivers(app, df, drivers, production=True):
                     html.P("No numeric variables available for correlation matrix."),
                     False,
                 )
-            fig_corr = arrange_corr_matx(df[[metric] + corr_vars].copy(), metric, drivers)
-            return summary_default(drivers, fig_corr), False
+            fig_corr, corr = plot_corr_matx(df[[metric] + corr_vars].copy(), metric, drivers)
+            fig_cluster = plot_hierarchical_cluster(df[corr_vars].copy())
+            fig_mi, mi = plot_mutual_information(df[[metric] + corr_vars].copy(), metric)
+
+            # Print to log redundant features
+            upper = corr.abs().where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+            redundant = [column for column in upper.columns if any(upper[column] > CORR_THRESH)]
+            corr_keep = [v for v in corr.columns if v not in redundant]
+            mi_cutoff = mi["Mutual information"].quantile(MI_QUANT)
+            mi_keep = mi.loc[mi["Mutual information"] >= mi_cutoff, "Explanatory variable"].tolist()
+            keep = list(set(mi_keep) & set(corr_keep))
+            print(f"Selected {len(keep)} features: {keep}")
+
+            return summary_default(drivers, fig_corr, fig_cluster, fig_mi), False
 
         # On 'Run analysis' click: RFE
         if not metric or not predictors:

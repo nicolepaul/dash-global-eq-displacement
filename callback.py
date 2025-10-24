@@ -13,14 +13,14 @@ def register_callbacks(app, df, drivers, production=True):
     register_callbacks_contributors(app)
 
 
-def register_tab_callbacks(app, xs, ys, drivers):
+def register_tab_callbacks(app, xs, ys, zs, drivers):
     @app.callback(
         Output("tab-content", "children"),
         Input("main-tabs", "value"),
     )
     def render_tab(tab):
         if tab == "tab-damage":
-            content = layout_damage(xs, ys)
+            content = layout_damage(xs, ys, zs)
         elif tab == "tab-drivers":
             content = layout_drivers(ys, drivers)
         elif tab == "tab-contributors":

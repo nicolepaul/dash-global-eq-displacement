@@ -14,11 +14,12 @@ def register_callbacks_damage(app, df):
         Output("regression-narrative", "children"),
         Input("y-selector", "value"),
         Input("x-selector", "value"),
+        Input("z-selector", "value"),
         Input("regression-radio", "value"),
     )
-    def update_outputs(y_choice, x_choice, regression_option):
+    def update_outputs(y_choice, x_choice, z_choice, regression_option):
         df_fit = df.copy()
-        traces, layout = arrange_scatter(df_fit, y_choice, x_choice)
+        traces, layout = arrange_scatter(df_fit, y_choice, x_choice, z_choice)
 
         narrative = NARRATIVE_REGRESSION
 

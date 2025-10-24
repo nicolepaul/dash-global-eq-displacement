@@ -4,8 +4,9 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 
 import statsmodels.formula.api as smf
+from statsmodels.tools.eval_measures import medianabs, medianbias
 from xgboost import XGBRegressor
-from sklearn.model_selection import KFold, RepeatedKFold, GridSearchCV
+from sklearn.model_selection import KFold, RepeatedKFold, GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import make_scorer, root_mean_squared_error, r2_score
 from sklearn.feature_selection import RFECV
 from sklearn.inspection import partial_dependence
@@ -78,6 +79,10 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
     alpha = lm_fit.params["Intercept"] if hasattr(lm_fit.params, "Intercept") else None
     beta = lm_fit.params["log_x"] if hasattr(lm_fit.params, "log_x") else None
     r2 = lm_fit.rsquared if hasattr(lm_fit, "rsquared") else None
+    r2_adj = lm_fit.rsquared_adj if hasattr(lm_fit, "rsquared_adj") else None
+    ypred = lm_fit.predict(df['log_x'])
+    mdae = medianabs(df['log_y'], ypred)
+    bias = medianbias(df['log_y'], ypred)
 
     # Write narrative
     narrative = []
@@ -91,6 +96,11 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
                 dbc.ListGroupItem(
                     f"R² = {r2:.3f}" if r2 is not None else "R² not available"
                 ),
+                dbc.ListGroupItem(
+                    f"R² (adj.) = {r2_adj:.3f}" if r2_adj is not None else "R² (adj.) not available"
+                ),
+                dbc.ListGroupItem(f"MdAPE = {mdae:.1%}"),
+                dbc.ListGroupItem(f"Median bias = {bias:.1%}"),
             ],
             flush=True,
         )
@@ -139,40 +149,40 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
             params = {
                 "n_estimators": 50,
                 "max_depth": 3,
-                "learning_rate": 0.3,
-                "reg_alpha": 0.1,
-                "reg_lambda": 5,
-                "gamma": 0.1,
-                "min_child_weight": 5,
+                "learning_rate": 0.2,
+                "reg_alpha": 0.1, 
+                "reg_lambda": 1, 
+                "gamma": 0.3,
+                "min_child_weight": 3, 
             } 
         elif metric == "evacuated":
             params = {
-                "n_estimators": 100,
-                "max_depth": 4,
+                "n_estimators": 50,
+                "max_depth": 3,
                 "learning_rate": 0.3,
                 "reg_alpha": 0.1,
-                "reg_lambda": 5,
-                "gamma": 0.1,
+                "reg_lambda": 1,
+                "gamma": 0.3,
                 "min_child_weight": 3,
             } 
         elif metric == "protracted":
             params = {
                 "n_estimators": 50,
-                "max_depth": 2,
-                "learning_rate": 0.1,
-                "reg_alpha": 1,
-                "reg_lambda": 10,
-                "gamma": 0.5,
-                "min_child_weight": 5,
+                "max_depth": 3,
+                "learning_rate": 0.2,
+                "reg_alpha": 0.1,
+                "reg_lambda": 1,
+                "gamma": 0.3,
+                "min_child_weight": 3,
             } 
         elif metric == "assisted":
             params = {
                 "n_estimators": 50,
-                "max_depth": 3,
-                "learning_rate": 0.2,
+                "max_depth": 2,
+                "learning_rate": 0.3,
                 "reg_alpha": 0.1,
-                "reg_lambda": 5,
-                "gamma": 0.2,
+                "reg_lambda": 1,
+                "gamma": 0.3,
                 "min_child_weight": 5,
             } 
         else:
@@ -186,19 +196,19 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
         grid = GridSearchCV(
             XGBRegressor(random_state=99),
             param_grid={
-                "n_estimators": [50, 100],
+                "n_estimators": [50],
                 "max_depth": [2, 3, 4],
                 "learning_rate": [0.1, 0.2, 0.3],
-                "reg_alpha": [0.1, 1],
-                "reg_lambda": [5, 10],
-                "gamma": [0.1, 0.2, 0.5],
+                "reg_alpha": [0.1, 0.5],
+                "reg_lambda": [1],
+                "gamma": [0.1, 0.3],
                 "min_child_weight": [3, 5],
             },
             cv=CV,
             scoring=mape_scorer,
             n_jobs=1,
         )
-        grid.fit(X, y)
+        grid.fit(X, y) 
         params = grid.best_params_
     parm = dbc.Row(
         [
@@ -284,14 +294,14 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
     rmse_log = root_mean_squared_error(y, y_pred)
     r2_log = r2_score(y, y_pred)
     mdape = mape_from_log(y, y_pred)
-    bias = np.mean(y_pred - y)
+    bias = np.median(y_pred - y)
     eval = dbc.Row(
         [
             html.B("Model performance:"),
             dbc.ListGroup(
                 [
                     dbc.ListGroupItem(
-                        f"MdAPE = {mdape:.3f}" if mdape is not None else ""
+                        f"MdAPE = {mdape:.1%}" if mdape is not None else ""
                     ),
                     dbc.ListGroupItem(
                         f"RMSE (log) = {rmse_log:.3f}" if rmse_log is not None else ""
@@ -300,7 +310,7 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
                         f"R² (log) = {r2_log:.3f}" if r2_log is not None else ""
                     ),
                     dbc.ListGroupItem(
-                        f"Bias (log) = {bias:.3f}" if bias is not None else ""
+                        f"Median bias (log) = {bias:.1%}" if bias is not None else ""
                     ),
                 ],
                 flush=True,

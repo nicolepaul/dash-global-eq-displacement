@@ -1,31 +1,38 @@
 import numpy as np
+import pandas as pd
 import plotly.graph_objs as go
 import plotly.express as px
+import plotly.figure_factory as ff
+from scipy.cluster.hierarchy import linkage
+from scipy.spatial.distance import squareform
+from sklearn.feature_selection import mutual_info_regression
 
 from _config import *
 
 
-def arrange_scatter(df, y_choice, x_choice):
+def arrange_scatter(df, y_choice, x_choice, z_choice):
 
-    regions = df["region"].unique()
-    REGION_COLORS = {regions[i]: CATEGORICAL_COLORS[i] for i in range(len(regions))}
+    df = df.sort_values(by=z_choice)
+
+    zs = df[z_choice].unique()
+    REGION_COLORS = {zs[i]: CATEGORICAL_COLORS[i] for i in range(len(zs))}
 
     df["log_x"] = np.log1p(df[x_choice])
     df["log_y"] = np.log1p(df[y_choice])
 
     traces = []
-    for region in regions:
-        sub = df[df["region"] == region]
+    for z in zs:
+        sub = df[df[z_choice] == z]
         traces.append(
             go.Scatter(
                 x=sub[x_choice],
                 y=sub[y_choice],
                 zorder=8,
                 mode="markers",
-                name=region,
+                name=z,
                 customdata=sub.to_dict("records"),
                 marker=dict(
-                    color=REGION_COLORS[region],
+                    color=REGION_COLORS[z],
                     size=10,
                     line=dict(width=1, color="white"),
                 ),
@@ -44,14 +51,45 @@ def arrange_scatter(df, y_choice, x_choice):
     layout = go.Layout(
         xaxis=dict(title=x_choice, type="log"),
         yaxis=dict(title=y_choice, type="log"),
-        legend=dict(title="Region"),
+        legend=dict(title=z_choice.capitalize()),
         margin=dict(l=20, r=20, t=20, b=20),
     )
 
     return traces, layout
 
 
-def arrange_corr_matx(sub, metric, drivers, method="pearson"):
+def plot_model_eval(y, y_pred):
+
+    fig_scatter = px.scatter(
+        x=y,
+        y=y_pred,
+        labels={"x": "Observed", "y": "Predicted"},
+    )
+    
+    fig_scatter.update_traces(
+        marker={"size": 10, "line": dict(width=1, color="white")},
+        hovertemplate="Observed: %{x:,.0f}<br>Predicted: %{y:,.0f}",
+    )
+    fig_scatter.add_shape(
+        type="line",
+        x0=min(y),
+        x1=max(y),
+        y0=min(y),
+        y1=max(y),
+        line=dict(color="silver", dash="dash"),
+    )
+    fig_scatter.update_layout(
+        height=500,
+        width=500,
+        yaxis={"type": "log"},
+        xaxis={"type": "log"},
+        margin=dict(l=60, r=40, t=40, b=40),
+    )
+
+    return fig_scatter
+
+
+def plot_corr_matx(sub, metric, drivers, method="pearson"):
 
     # Rename metric for pretty display
     sub.rename(columns={metric: metric.split("_").pop(0).upper()}, inplace=True)
@@ -103,33 +141,56 @@ def arrange_corr_matx(sub, metric, drivers, method="pearson"):
         margin=dict(l=60, r=40, t=40, b=40),
     )
 
-    return dcc.Graph(figure=fig, style={"height": "750px"})
+    return dcc.Graph(figure=fig, style={"height": "750px"}), corr_df
 
 
-def plot_model_eval(y, y_pred):
+def plot_hierarchical_cluster(sub, corr_method="pearson", link_method="ward"):
 
-    fig_scatter = px.scatter(
-        x=y,
-        y=y_pred,
-        labels={"x": "Observed", "y": "Predicted"},
-    ).update_traces(
-        marker={"size": 10, "line": dict(width=1, color="white")},
-        hovertemplate="Observed: %{x:,.0f}<br>Predicted: %{y:,.0f}",
-    )
-    fig_scatter.add_shape(
-        type="line",
-        x0=min(y),
-        x1=max(y),
-        y0=min(y),
-        y1=max(y),
-        line=dict(color="silver", dash="dash"),
-    )
-    fig_scatter.update_layout(
-        height=500,
-        width=500,
-        yaxis={"type": "log"},
-        xaxis={"type": "log"},
-        margin=dict(l=60, r=40, t=40, b=40),
+    corr = sub.corr(method=corr_method)
+    dist = 1 - np.abs(corr)
+
+    dist_condensed = squareform(dist.values, checks=False)
+    Z = linkage(dist_condensed, method=link_method)
+
+    fig = ff.create_dendrogram(
+        dist.values,
+        orientation="left",
+        labels=dist.columns.tolist(),
+        linkagefun=lambda _: Z,
+        colorscale=CATEGORICAL_COLORS
     )
 
-    return fig_scatter
+    fig.update_layout(
+        margin=dict(l=120, r=20, t=50, b=20),
+        height=600,
+        xaxis=dict(showticklabels=False, ticks=""),
+        yaxis=dict(showticklabels=True, ticks=""),
+    )
+
+    return dcc.Graph(figure=fig, style={"height": "600px"})
+
+
+def plot_mutual_information(sub, metric):
+
+    sub = sub.dropna()
+    X = sub.drop(columns=metric)
+    y = sub[metric]
+
+    mi_scores = mutual_info_regression(X, y)
+    mi_df = pd.DataFrame({"Explanatory variable": X.columns, "Mutual information": mi_scores})
+    mi_df = mi_df.sort_values("Mutual information")
+
+    fig = px.bar(
+        mi_df,
+        x="Mutual information",
+        y="Explanatory variable",
+        orientation="h",
+    )
+
+    fig.update_traces(hovertemplate="%<b>{y}:</b><br>%{x:.0%}<extra></extra>")
+
+    fig.update_layout(
+        yaxis_title=None
+    )
+
+    return dcc.Graph(figure=fig, style={"height": "600px"}), mi_df

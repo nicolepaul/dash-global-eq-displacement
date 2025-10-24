@@ -58,7 +58,7 @@ def regression_section():
     )
 
 
-def controls(xs, ys, default_x, default_y):
+def controls(xs, ys, zs, default_x, default_y, default_z):
     return dbc.Card(
         [
             html.H4("Select variables"),
@@ -78,6 +78,14 @@ def controls(xs, ys, default_x, default_y):
                 clearable=False,
                 searchable=True,
             ),
+            html.B("Color data by"),
+            dcc.Dropdown(
+                id="z-selector",
+                options=[{"label": zs[name], "value": name} for name in zs],
+                value=default_z,
+                clearable=False,
+                searchable=True,
+            ),
         ],
         body=True,
     )
@@ -93,10 +101,11 @@ def event_narrative():
     )
 
 
-def layout_damage(xs, ys):
-    # Default x/y for initial view
+def layout_damage(xs, ys, zs):
+    # Default x/y/z for initial view
     default_y = "sheltered_peak"
     default_x = "destroyed*ahhs-fatalities"
+    default_z = "region"
 
     return dbc.Container(
         [
@@ -108,7 +117,7 @@ def layout_damage(xs, ys):
                     ),
                     dbc.Col(
                         [
-                            controls(xs, ys, default_x, default_y),
+                            controls(xs, ys, zs, default_x, default_y, default_z),
                             regression_section(),
                         ],
                         md=4,

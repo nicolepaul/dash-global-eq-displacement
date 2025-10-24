@@ -20,14 +20,14 @@ def create_app(production=True):
     app._favicon = "favicon.ico"
     app.title = "Population displacement after earthquakes"
 
-    df, xs, ys = get_data()
+    df, xs, ys, zs = get_data()
     drivers = get_drivers()
     df, drivers = transform_variables(df, drivers)
 
     app.layout = main_layout(xs, ys, df, drivers)
 
     register_callbacks(app, df, drivers, production=production)
-    register_tab_callbacks(app, xs, ys, drivers)
+    register_tab_callbacks(app, xs, ys, zs, drivers)
 
     return app
 
