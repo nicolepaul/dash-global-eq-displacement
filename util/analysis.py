@@ -348,14 +348,20 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
         )
     else:
         for feat in selected:
-            pred = partial_dependence(final_model, X[selected], feat)
-            avg, grid = pred["average"], pred["grid_values"]
+            pred = partial_dependence(final_model, X[selected], feat, kind='both')
+            ice_curves, grid = np.squeeze(pred['individual']), pred['grid_values']
 
-            fig = go.Figure(
-                go.Scatter(x=grid[0], y=avg[0], mode="lines", name=f"PDP: {feat}")
-            )
+            fig = go.Figure()
+
+            for sample_curve in ice_curves:
+                fig.add_trace(go.Scatter(x=grid[0], y=sample_curve, mode='lines', line=dict(width=1, color='silver'), hoverinfo="skip"))
+
+            avg = ice_curves.mean(axis=0)
+            fig.add_trace(go.Scatter(x=grid[0], y=avg, mode='lines', line=dict(width=3, color="#212121"), name='Average'))
+
             fig.update_layout(
                 title=drivers.loc[drivers.variable == feat, "name"].values[0],
+                showlegend=False,
                 margin=dict(l=40, r=20, t=30, b=30),
                 height=300,
             )
