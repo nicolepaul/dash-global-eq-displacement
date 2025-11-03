@@ -6,19 +6,20 @@ import plotly.figure_factory as ff
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
 from sklearn.feature_selection import mutual_info_regression
+from sklearn.inspection import partial_dependence
 
 from _config import *
 
 
-def arrange_scatter(df, y_choice, x_choice, z_choice):
+def plot_scatter(df, y_choice, x_choice, z_choice):
 
     df = df.sort_values(by=z_choice)
 
     zs = df[z_choice].unique()
     REGION_COLORS = {zs[i]: CATEGORICAL_COLORS[i] for i in range(len(zs))}
 
-    df["log_x"] = np.log1p(df[x_choice])
-    df["log_y"] = np.log1p(df[y_choice])
+    df["log_x"] = np.log(df[x_choice].replace(0, FILL_ZERO))
+    df["log_y"] = np.log(df[y_choice].replace(0, FILL_ZERO))
 
     traces = []
     for z in zs:
@@ -65,7 +66,7 @@ def plot_model_eval(y, y_pred):
         y=y_pred,
         labels={"x": "Observed", "y": "Predicted"},
     )
-    
+
     fig_scatter.update_traces(
         marker={"size": 10, "line": dict(width=1, color="white")},
         hovertemplate="Observed: %{x:,.0f}<br>Predicted: %{y:,.0f}",
@@ -79,8 +80,8 @@ def plot_model_eval(y, y_pred):
         line=dict(color="silver", dash="dash"),
     )
     fig_scatter.update_layout(
-        height=500,
-        width=500,
+        height=400,
+        width=400,
         yaxis={"type": "log"},
         xaxis={"type": "log"},
         margin=dict(l=60, r=40, t=40, b=40),
@@ -157,7 +158,7 @@ def plot_hierarchical_cluster(sub, corr_method="pearson", link_method="ward"):
         orientation="left",
         labels=dist.columns.tolist(),
         linkagefun=lambda _: Z,
-        colorscale=CATEGORICAL_COLORS
+        colorscale=CATEGORICAL_COLORS,
     )
 
     fig.update_layout(
@@ -177,7 +178,9 @@ def plot_mutual_information(sub, metric):
     y = sub[metric]
 
     mi_scores = mutual_info_regression(X, y)
-    mi_df = pd.DataFrame({"Explanatory variable": X.columns, "Mutual information": mi_scores})
+    mi_df = pd.DataFrame(
+        {"Explanatory variable": X.columns, "Mutual information": mi_scores}
+    )
     mi_df = mi_df.sort_values("Mutual information")
 
     fig = px.bar(
@@ -189,8 +192,57 @@ def plot_mutual_information(sub, metric):
 
     fig.update_traces(hovertemplate="<b>%{y}:</b><br>%{x:.0%}<extra></extra>")
 
-    fig.update_layout(
-        yaxis_title=None
-    )
+    fig.update_layout(yaxis_title=None)
 
     return dcc.Graph(figure=fig, style={"height": "600px"}), mi_df
+
+
+def plot_feature_importance(importances, selected):
+    fig_imp = go.Figure(
+        [go.Bar(x=importances, y=selected, orientation="h",
+                hovertemplate="<b>%{y}: </b>%{x:.1%}<extra></extra>")]
+    )
+    fig_imp.update_layout(yaxis=dict(autorange="reversed"))
+    return dcc.Graph(figure=fig_imp, style={"height": "400px"})
+
+
+def plot_pdp(final_model, X_selected, feat, drivers):
+    try:
+        pred = partial_dependence(final_model, X_selected, feat, kind="both")
+        ice_curves = np.squeeze(pred["individual"])
+        grid = pred["grid_values"][0] if isinstance(pred["grid_values"], (list, tuple)) else pred["grid_values"]
+    except Exception:
+        return dcc.Graph(figure=EMPTY_FIG, style={"height": "300px"})
+
+    fig = go.Figure()
+    if ice_curves is not None and ice_curves.ndim == 2:
+        for sample_curve in ice_curves:
+            fig.add_trace(
+                go.Scatter(x=grid, y=sample_curve, mode="lines", line=dict(width=1, color="silver"), hoverinfo="skip")
+            )
+
+    avg = ice_curves.mean(axis=0) if ice_curves is not None else np.zeros_like(grid)
+    fig.add_trace(
+        go.Scatter(x=grid, y=avg, mode="lines", line=dict(width=3, color="#212121"), name="Average")
+    )
+
+    title = drivers.loc[drivers.variable == feat, "name"].values
+    title = title[0] if len(title) else feat
+
+    fig.update_layout(title=title, showlegend=False, margin=dict(l=40, r=20, t=30, b=30), height=300)
+    return dcc.Graph(figure=fig, style={"height": "300px"})
+
+
+def plot_interactions(interaction_df):
+
+    fig = px.imshow(
+        interaction_df,
+        color_continuous_scale="RdBu",
+        aspect="auto",
+        zmin=-1, # red should be out of scale
+        zmax=1,
+        text_auto=".0%",
+    )
+    fig.update_traces(hovertemplate="%{x}, %{y}:<br><b>%{z:.0%}</b><extra></extra>")
+    fig.update_layout(margin=dict(l=60, r=40, t=40, b=40), coloraxis={"showscale": False})
+    return dcc.Graph(figure=fig, style={"height": "600px"})

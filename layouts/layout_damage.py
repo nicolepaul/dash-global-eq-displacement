@@ -37,10 +37,10 @@ def regression_section():
                         id="regression-radio",
                         options=[
                             {"label": "No regression", "value": "none"},
-                            {"label": "Run OLS with intercept", "value": "ols_int"},
-                            {"label": "Run RLM with intercept", "value": "rlm_int"},
-                            {"label": "Run OLS without intercept", "value": "ols"},
-                            {"label": "Run RLM without intercept", "value": "rlm"},
+                            {"label": "Ordinary least squares, with intercept", "value": "ols_int"},
+                            {"label": "Ordinary least squares, without intercept", "value": "ols"},
+                            {"label": "Robust linear model, with intercept", "value": "rlm_int"},
+                            {"label": "Robust linear model, without intercept", "value": "rlm"},
                         ],
                         value="none",  # Default selection
                         inline=False,

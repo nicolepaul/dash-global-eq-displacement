@@ -101,7 +101,7 @@ def layout_drivers(ys, drivers):
                             select_metric(ys),
                             select_variables(drivers),
                         ],
-                        width=4,
+                        width=3,
                     ),
                     dbc.Col(
                         dcc.Loading(

@@ -62,7 +62,7 @@ def summary_default(drivers, fig_corr, fig_cluster, fig_mi):
     return narrative
 
 
-def summary_rfe(summary, plot_feature, plot_pdp):
+def summary_rfe(summary, plot_feature, plot_pdp, plot_int):
 
     narrative = html.Div(
         [
@@ -79,6 +79,10 @@ def summary_rfe(summary, plot_feature, plot_pdp):
             html.H4("Partial dependence plots"),
             html.P(NARRATIVE_PDP),
             html.Div(plot_pdp),
+            html.Hr(),
+            html.H4("Feature interaction"),
+            html.P(NARRATIVE_INT),
+            html.Div(plot_int),
         ]
     )
 
@@ -116,7 +120,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
         # Get predictors
         predictors = [id_["index"] for val, id_ in zip(values, ids) if val]
 
-        # On load or 'Explore dirvers' click: correlation
+        # On load or 'Explore drivers' click: correlation
         if (not predictors or not triggered.startswith("analysis-btn")) | triggered.startswith("explore-btn"):
             predictors = [id_["index"] for val, id_ in zip(values, ids) if val]
             if not predictors:
@@ -168,10 +172,10 @@ def register_callbacks_drivers(app, df, drivers, production=True):
             )
 
         try:
-            summary, plot_feature, plot_pdp = run_rfe(drivers, sub, metric, predictors, production=True)
+            summary, plot_feature, plot_pdp, plot_int = run_rfe(drivers, sub, metric, predictors)
         except Exception as e:
             return html.Div([html.P("Error running analysis"), html.Pre(str(e))]), False
 
-        results = summary_rfe(summary, plot_feature, plot_pdp)
+        results = summary_rfe(summary, plot_feature, plot_pdp, plot_int)
 
         return results, False

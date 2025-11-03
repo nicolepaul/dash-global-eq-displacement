@@ -4,7 +4,7 @@ from dash import Input, Output, State, html, dcc
 
 from _config import *
 from util.analysis import run_regression
-from util.plotters import arrange_scatter
+from util.plotters import plot_scatter
 
 
 def register_callbacks_damage(app, df):
@@ -19,7 +19,7 @@ def register_callbacks_damage(app, df):
     )
     def update_outputs(y_choice, x_choice, z_choice, regression_option):
         df_fit = df.copy()
-        traces, layout = arrange_scatter(df_fit, y_choice, x_choice, z_choice)
+        traces, layout = plot_scatter(df_fit, y_choice, x_choice, z_choice)
 
         narrative = NARRATIVE_REGRESSION
 

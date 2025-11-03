@@ -40,7 +40,7 @@ EMPTY_FIG.update_layout(
 )
 
 CV = 5
-S = 3
+S = 5
 MIN_EVENT = 20
 
 BORDERLESS = {"style": {"border": "none", "boxShadow": "none"}}
@@ -80,16 +80,7 @@ DEFAULT_TEXT = dbc.CardBody(
     ]
 )
 
-NARRATIVE_REGRESSION = (
-            html.P(),
-            "Supported linear regression models:",
-            html.Ul(
-                [
-                    html.Li("OLS: Ordinary least squares"),
-                    html.Li("RLM: Robust linear model"),
-                ]
-            ),
-        )
+NARRATIVE_REGRESSION = ""
 
 NARRATIVE_DRIVERS = """This analysis fits machine learning models to predict the selected displacement metric 
                 using a minimal number of predictors. Different environmental, economic, demographic, social, 
@@ -112,7 +103,53 @@ NARRATIVE_RFE = """To identify which limited set of mobility drivers best predic
                 avoids assumptions about linearity and is robust to the inclusion of correlated features."""
 NARRATIVE_FI = "A simple estimate of the feature importance for the selected variables is shown for the final XGBoost model."
 NARRATIVE_PDP = """This analysis is ultimately intended to fit a simpler linear regression style model. The partial
-                dependence plots help us understand whether the relationship between the predictors and the displacement                 metric is linear, or whether some nonlinear terms require consideration."""
+                dependence plots help us understand whether the relationship between the predictors and the displacement 
+                metric is linear, or whether some nonlinear terms require consideration."""
+NARRATIVE_INT = """Interactions capture when the value of one feature influences the effect of another feature on model predictions. 
+                The values here are calculated using the TreeExplainer from SHAP (SHapley Additive exPlanations). If certain features 
+                exhibit a non-negligible interaction, then we might add interaction terms into our linear regression formulation."""
 
 CORR_THRESH = 0.8
 MI_QUANT = 0.5
+
+PARAM_GRID = {
+    "n_estimators": [50],
+    "max_depth": [2, 3],
+    "learning_rate": [0.1, 0.2, 0.3],
+    "gamma": [0.3, 0.4, 0.5],
+    "min_child_weight": [3, 4, 5, 6, 7],
+}
+
+PARAM_PROD = {
+    "sheltered_peak": {
+        "n_estimators": 50,
+        "max_depth": 3,
+        "learning_rate": 0.3,
+        "gamma": 0.3,
+        "min_child_weight": 4,
+    },
+    "protracted": {
+        "n_estimators": 50,
+        "max_depth": 2,
+        "learning_rate": 0.3,
+        "gamma": 0.5,
+        "min_child_weight": 3,
+    },
+    "evacuated": {
+        "n_estimators": 50,
+        "max_depth": 2,
+        "learning_rate": 0.2,
+        "gamma": 0.5,
+        "min_child_weight": 3,
+    },
+    "assisted": {
+        "n_estimators": 50,
+        "max_depth": 2,
+        "learning_rate": 0.3,
+        "gamma": 0.5,
+        "min_child_weight": 4,
+    },
+}
+
+CV_SEED = 22
+MODEL_SEED = 99

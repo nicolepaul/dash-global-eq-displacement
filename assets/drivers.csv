@@ -1,10 +1,10 @@
 ﻿variable,name,resolution,source,period,category,narrative,default,transform
-DESTROYED,Residents of destroyed homes,National,See Event data tab,,Environment,Coming soon,TRUE,log
-DAMAGED,Residents of damaged homes,National,See Event data tab,,Environment,Coming soon,FALSE,log
-EQ_FATALITIES,"Number of earthquake fatalities, 10yr",National,[EM-DAT](https://www.emdat.be/),,Environment,Coming soon,FALSE,log
-GRID_SLOPE,Slope,Gridded,"Derived using [30 arcsecond DEM](https://earthexplorer.usgs.gov/) using GDAL, courtesy Lana Todorovic",,Environment,Coming soon,FALSE,
-SOCIOECONOMIC,Socioeconomic index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Economic,Coming soon,FALSE,
-DEPENDENCY,Economic dependency index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Economic,Coming soon,FALSE,
+DESTROYED,Residents of destroyed homes,National,See Event data tab,2009-2025,Environment,Coming soon,TRUE,log
+DAMAGED,Residents of damaged homes,National,See Event data tab,2009-2025,Environment,Coming soon,FALSE,log
+EQ_FATALITIES,"Number of earthquake fatalities, 10yr",National,[EM-DAT](https://www.emdat.be/),2010-2025,Environment,Coming soon,FALSE,log
+GRID_SLOPE,Slope,Gridded,"Derived using [30 arcsecond DEM](https://earthexplorer.usgs.gov/) using GDAL, courtesy Lana Todorovic",2010,Environment,Coming soon,FALSE,
+SOCIOECONOMIC,Socioeconomic vulnerability,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),2011-2024,Economic,Coming soon,FALSE,
+DEPENDENCY,Economic dependency index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),2011-2024,Economic,Coming soon,FALSE,
 GRID_GDPC,GDP per capita,Gridded,[Kummu et al 2025](https://doi.org/10.1038/s41597-025-04487-x),2022,Economic,Coming soon,FALSE,log
 INCOME,Income index,National,[Global Data Lab](https://globaldatalab.org/shdi/table/incindex/?levels=1),2009-2022,Economic,Coming soon,TRUE,
 EDUCATION,Educational index,National,[Global Data Lab](https://globaldatalab.org/shdi/table/edindex/?levels=1),2009-2022,Economic,Coming soon,FALSE,
@@ -16,12 +16,14 @@ GINI,Gini coefficient,National,[OWID; World Bank](https://ourworldindata.org/gra
 PALMA,Palma ratio,National,[OWID; WID](https://ourworldindata.org/grapher/palma-ratio-s90s40-ratio?time=2023),2010-2023,Economic,Coming soon,TRUE,
 GRID_POP,Affected population,Gridded (1km),[WorldPop 2025](https://hub.worldpop.org/project/categories?id=3),2020,Demographic,Coming soon,FALSE,log
 GRID_SMOD,Urban proportion,Gridded,[GHS-SMOD 2023](https://human-settlement.emergency.copernicus.eu/ghs_smod2023.php),2020,Demographic,Coming soon,TRUE,
-DEPENDENT_RATIO,Dependency ratio,National,[World Bank WDI](https://databank.worldbank.org/source/world-development-indicators#),2000-2024,Demographic,Coming soon,TRUE,
+AGE_DEPENDENCY,Age dependency ratio,National,[World Bank WDI](https://databank.worldbank.org/source/world-development-indicators#),2000-2024,Demographic,Coming soon,TRUE,
 POP15,Proportion of population under 15 years,National,[World Bank WDI](https://databank.worldbank.org/source/world-development-indicators#),2000-2024,Demographic,Coming soon,FALSE,
 POP65,Proportion of population over 64 years,National,[World Bank WDI](https://databank.worldbank.org/source/world-development-indicators#),2000-2024,Demographic,Coming soon,FALSE,
 POP_GROWTH,"Population growth, 5yr",National,[World Bank WDI](https://databank.worldbank.org/source/world-development-indicators#),2011-2024,Demographic,Coming soon,FALSE,
-TENURE_SECURITY,Tenure security,National,[UN SDG 1.4.2](https://unstats.un.org/sdgs/dataportal/database) and [Prindex](https://www.prindex.net/data/downloads/),,Social,Coming soon,TRUE,
+PC_INTERNATIONAL,"Place connectivity, international",National,[Li et al 2021](https://doi.org/10.1038/s41598-021-94300-7),2019,Social,Coming soon,FALSE,
+PC_NATIONAL,"Place connectivity, national",National,[Li et al 2021](https://doi.org/10.1038/s41598-021-94300-7),2019,Social,Coming soon,FALSE,
+TENURE_SECURITY,Tenure security,National,[UN SDG 1.4.2](https://unstats.un.org/sdgs/dataportal/database) and [Prindex](https://www.prindex.net/data/downloads/),2011-2022 and 2020-2024,Social,Coming soon,TRUE,
 GDI,Gender development index,National,[Global Data Lab](https://globaldatalab.org/shdi/table/sgdi/?levels=1&interpolation=0&extrapolation=0),2010-2022,Social,Coming soon,FALSE,
-GOVERNANCE,Governance index,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Political,Coming soon,FALSE,
+GOVERNANCE,Governance,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),2011-2024,Political,Coming soon,FALSE,
 EPR,Ethnic power relations,National,[ETH EPR v1.1](https://icr.ethz.ch/data/epr/core/),1946-2021,Political,Coming soon,TRUE,
-UPROOTED,Uprooted people,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),,Political,Coming soon,FALSE,
+UPROOTED,Uprooted people,National,[INFORM 2025](https://drmkc.jrc.ec.europa.eu/inform-index/INFORM-Risk),2011-2024,Political,Coming soon,FALSE,
