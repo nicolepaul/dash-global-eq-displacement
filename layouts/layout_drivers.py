@@ -2,23 +2,41 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 from _config import *
 
-# TODO: We should include the number of events with selected drivers somewhere to help guide decisions; 
+# TODO: We should include the number of events with selected drivers somewhere to help guide decisions;
 # have some visual indication of model performance
+
 
 def control_analysis():
     return dbc.Row(
         [
             html.H4("Run analysis"),
+            html.H5('Initial feature selection'),
+            html.P('Before fitting models, we need to reduce the number of explanatory variables to avoid multi-colinearity and overfitting.'),
             dbc.Button(
                 "Explore drivers",
                 id="explore-btn",
-                style={"width": "40%", "margin": "0.5rem"},
+                style={
+                    "width": "40%",
+                    "margin": "0.5rem",
+                },
                 n_clicks=0,
             ),
+            html.H5('Model fitting'),
+            html.P('Tree-based models are useful for reducing the number of predictors and understanding the nature of their relationship with the selected displacement metric. Once the best predictors are identified, nonlinear terms can be incorporated into linear regression-style models for practical implementation.'),
+            dcc.Dropdown(
+                id="model-type-dropdown",
+                options=[{"label": "Tree-based (XGBoost)", "value": "xgboost"}, {"label": "Linear regression", "value": "linear"}],
+                value="xgboost",
+                placeholder="Select model type",
+                style={"marginBottom": "0.25em"},
+            ),
             dbc.Button(
-                "Run RFE",
+                "Run analysis",
                 id="analysis-btn",
-                style={"width": "40%", "margin": "0.5rem"},
+                style={
+                    "width": "40%",
+                    "margin": "0.5rem",
+                },
                 n_clicks=0,
             ),
             html.P(),
@@ -31,7 +49,8 @@ def select_metric(ys):
 
     return dbc.Row(
         [
-            html.H4("Displacement metric"),
+            html.H4('Select variables'),
+            html.H5("Displacement metric"),
             dcc.Dropdown(
                 id="rfe-metric-dropdown",
                 options=[{"label": ys[name], "value": name} for name in ys],
@@ -77,7 +96,7 @@ def select_variables(drivers):
             )
         )
     return dbc.Row(
-        [html.H4("Explanatory variables"), html.Div(checklist_groups), html.Br()]
+        [html.H5("Explanatory variables"), html.Div(checklist_groups), html.Br()]
     )
 
 

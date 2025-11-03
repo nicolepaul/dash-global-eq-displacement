@@ -108,12 +108,13 @@ def register_callbacks_drivers(app, df, drivers, production=True):
         Input("analysis-btn", "n_clicks"),
         Input("explore-btn", "n_clicks"),
         Input("tab-content", "children"),
+        State("model-type-dropdown", "value"),
         State("rfe-metric-dropdown", "value"),
         State({"type": "driver-checkbox", "index": ALL}, "value"),
         State({"type": "driver-checkbox", "index": ALL}, "id"),
         prevent_initial_call=False,
     )
-    def run_analysis(clicks_1, clicks_2, tab_children, metric, values, ids):
+    def run_analysis(clicks_1, clicks_2, tab_children, model_type, metric, values, ids):
 
         triggered = ctx.triggered[0]["prop_id"] if ctx.triggered else None
 
@@ -171,11 +172,19 @@ def register_callbacks_drivers(app, df, drivers, production=True):
                 False,
             )
 
+        
+        results = None
         try:
-            summary, plot_feature, plot_pdp, plot_int = run_rfe(drivers, sub, metric, predictors)
+            if model_type == 'xgboost':
+                summary, plot_feature, plot_pdp, plot_int = run_rfe(drivers, sub, metric, predictors)
+                results = summary_rfe(summary, plot_feature, plot_pdp, plot_int)
+            elif model_type == 'linear':
+                results = 'Coming soon!'
+            else:
+                return html.Div([html.P("Error running analysis")]), False
         except Exception as e:
             return html.Div([html.P("Error running analysis"), html.Pre(str(e))]), False
 
-        results = summary_rfe(summary, plot_feature, plot_pdp, plot_int)
+        
 
         return results, False
