@@ -26,7 +26,7 @@ def control_analysis():
             dcc.Dropdown(
                 id="model-type-dropdown",
                 options=[{"label": "Tree-based (XGBoost)", "value": "xgboost"}, {"label": "Linear regression", "value": "linear"}],
-                value="xgboost",
+                value="linear",
                 placeholder="Select model type",
                 style={"marginBottom": "0.25em"},
             ),
