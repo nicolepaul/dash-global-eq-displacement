@@ -109,6 +109,14 @@ NARRATIVE_INT = """Interactions capture when the value of one feature influences
                 The values here are calculated using the TreeExplainer from SHAP (SHapley Additive exPlanations). If certain features 
                 exhibit a non-negligible interaction, then we might add interaction terms into our linear regression formulation."""
 
+
+NARRATIVE_LIN = """A critical requirement for our probabilistic calculations is that our displacement model can interpolate and extrapolate. 
+                Therefore, we fit linear regression models in this analysis. To accommodate potential nonlinear terms and interactions, we 
+                investigate the results from tree-based models (XGBoost) to identify the top predictors and any relevant nonlinear relationships. 
+                Once we've identified potential predictors, we fit linear regression models with every permutation of those predictors. To ensure 
+                model stability, we repeat this process for many iterations of training/testing sample splits. Once we've identified the best 
+                combination of predictors, we estimate the model uncertainty via bootstrapping."""
+
 CORR_THRESH = 0.8
 MI_QUANT = 0.5
 
@@ -151,5 +159,24 @@ PARAM_PROD = {
     },
 }
 
+LINEAR_TERMS = {
+    "sheltered_peak": ["DESTROYED", "I(DESTROYED>10)", "INCOME", "I(INCOME>0.7)", "PALMA", "I(PALMA>0.065)", "TENURE_SECURITY", "I(TENURE_SECURITY>0.83)", "DESTROYED×INCOME"],
+    "protracted": ["DESTROYED", "I(DESTROYED>10.3)", "PALMA", "I(PALMA>0.044)", "DESTROYED×PALMA"],
+    "evacuated": ["DESTROYED","I(DESTROYED>9)", "I(DESTROYED>12.5)", "INCOME", "I(INCOME>0.69)"],
+}
+LINEAR_PROD = {
+    "sheltered_peak": ['DESTROYED', 'INCOME', 'I(INCOME>0.7)', 'PALMA'],
+    "protracted": ['DESTROYED', 'I(DESTROYED>10.3)', 'PALMA'], #['DESTROYED', 'PALMA', 'I(PALMA>0.044)'],
+    "evacuated": ['DESTROYED', 'I(DESTROYED>9)'],
+}
+
 CV_SEED = 22
 MODEL_SEED = 99
+
+LIN_REPEATS = 50
+LIN_TEST = 0.2
+N_BOOTSTRAP = 300
+
+FILTER_R2 = 0.65
+FILTER_MAPE = 0.45
+FILTER_MDAPE = 0.20

@@ -2,18 +2,21 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 from dash import dcc, html
+from dash.dash_table import DataTable
 import dash_bootstrap_components as dbc
 
 import statsmodels.formula.api as smf
 
 from xgboost import XGBRegressor
-from sklearn.model_selection import (
-    KFold,
-    RepeatedKFold,
-    GridSearchCV,
-)
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import KFold, RepeatedKFold, GridSearchCV, train_test_split
 from sklearn.metrics import make_scorer, root_mean_squared_error
 from sklearn.feature_selection import RFECV
+
+from util.transform import (
+    parse_transformations,
+    generate_predictor_subsets,
+)
 
 import shap
 
@@ -21,7 +24,6 @@ import shap
 from _config import *
 from util.metrics import (
     rsquared,
-    percent_error,
     percent_absolute_error,
     custom_score,
 )
@@ -30,20 +32,16 @@ from util.plotters import (
     plot_feature_importance,
     plot_pdp,
     plot_interactions,
+    plot_model_eval_uncertainty,
 )
 
 
-def transform_variables(df, drivers):
-    for i, row in drivers.iterrows():
-        if row["transform"] == "log":
-            df[row.variable] = np.log(df[row.variable].replace(0, FILL_ZERO))
-            drivers.loc[i, "name"] = "log(" + drivers.loc[i, "name"] + ")"
-    return df, drivers
-
-
 def run_regression(df, x_col, y_col, method="ols", add_trace=True):
-    N = 200
 
+    N_PLOT = 200
+
+    df[x_col] = np.maximum(df[x_col], FILL_ZERO)
+    df[y_col] = np.maximum(df[y_col], FILL_ZERO)
     df["log_x"] = np.log(df[x_col])
     df["log_y"] = np.log(df[y_col])
 
@@ -94,7 +92,7 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
     # Get key values
     alpha = lm_fit.params["Intercept"] if hasattr(lm_fit.params, "Intercept") else None
     beta = lm_fit.params["log_x"] if hasattr(lm_fit.params, "log_x") else None
-    ypred = lm_fit.predict(df["log_x"])
+    df['pred_y'] = lm_fit.predict(df["log_x"])
 
     # Write narrative
     narrative = []
@@ -102,18 +100,21 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
 
         regression_results = dbc.ListGroup(
             [
+                html.I("Model support"),
                 dbc.ListGroupItem(f"n = {df[y_col].count():,.0f}"),
+                html.I("Model coefficient(s)"),
                 dbc.ListGroupItem(f"α = {alpha:.3f}" if alpha is not None else ""),
                 dbc.ListGroupItem(f"β = {beta:.3f}" if beta is not None else ""),
-                dbc.ListGroupItem(f"R² = {rsquared(df['log_y'], ypred):.1%}"),
+                html.I("Model evaluation (training set)"),
+                dbc.ListGroupItem(f"R² = {rsquared(df['log_y'], df['pred_y']):.1%}"),
                 dbc.ListGroupItem(
-                    f"Median abs. percent error = {np.median(percent_absolute_error(df['log_y'], ypred)):.1%}"
+                    f"Median abs. percent error = {np.median(percent_absolute_error(df['log_y'], df['pred_y'])):.1%}"
                 ),
                 dbc.ListGroupItem(
-                    f"Mean abs. percent error = {np.mean(percent_absolute_error(df['log_y'], ypred)):.1%}"
+                    f"Mean abs. percent error = {np.mean(percent_absolute_error(df['log_y'], df['pred_y'])):.1%}"
                 ),
                 dbc.ListGroupItem(
-                    f"Consensus score = {custom_score(df['log_y'], ypred):.1%}"
+                    f"Consensus score = {custom_score(df['log_y'], df['pred_y']):.1%}"
                 ),
             ],
             flush=True,
@@ -128,7 +129,7 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
     # Define trace
     trace = None
     if add_trace:
-        log_x = np.linspace(np.log(FILL_ZERO), df["log_x"].max(), N)
+        log_x = np.linspace(np.log(FILL_ZERO), df["log_x"].max(), N_PLOT)
         y_hat = lm_fit.predict(exog=dict(log_x=log_x))
 
         trace = go.Scatter(
@@ -163,9 +164,15 @@ def summarize_model(params):
 def summarize_evaluation(y, y_pred):
     try:
         eval_items = [
-            dbc.ListGroupItem(f"Median abs. percent error = {np.median(percent_error(y, y_pred)):.1%}"),
-            dbc.ListGroupItem(f"Mean abs. percent error = {np.mean(percent_error(y, y_pred)):.1%}"),
-            dbc.ListGroupItem(f"Root mean square error = {root_mean_squared_error(y, y_pred):.3f}"),
+            dbc.ListGroupItem(
+                f"Median abs. percent error = {np.median(percent_absolute_error(y, y_pred)):.1%}"
+            ),
+            dbc.ListGroupItem(
+                f"Mean abs. percent error = {np.mean(percent_absolute_error(y, y_pred)):.1%}"
+            ),
+            dbc.ListGroupItem(
+                f"Root mean square error = {root_mean_squared_error(y, y_pred):.3f}"
+            ),
             dbc.ListGroupItem(f"R² = {rsquared(y, y_pred):.1%}"),
             dbc.ListGroupItem(f"Consensus score = {custom_score(y, y_pred):.1%}"),
         ]
@@ -278,7 +285,8 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
                                 dbc.Col([html.I("Refit (training)"), eval_train]),
                             ]
                         ),
-                    ], md=6,
+                    ],
+                    md=6,
                 ),
                 dbc.Col(dcc.Graph(figure=fig_eval)),
             ]
@@ -305,3 +313,254 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
     fig_interaction = plot_interactions(interaction_df)
 
     return summary, fig_feature, figs_pdp, fig_interaction
+
+
+def repeat_linear_models(X, y, seed=42):
+
+    n = len(X)
+
+    r2, mape, mdape, custom = [], [], [], []
+    train_pred, train_true, test_pred, test_true = [], [], [], []
+    train_idxs, test_idxs = [], []
+
+    for rep in range(LIN_REPEATS):
+        train_idx, test_idx = train_test_split(
+            np.arange(n), test_size=LIN_TEST, random_state=seed + rep
+        )
+
+        model = LinearRegression()
+        model.fit(X.iloc[train_idx], y.iloc[train_idx])
+
+        y_pred = model.predict(X.iloc[test_idx])
+        y_test = y.iloc[test_idx]
+
+        r2.append(rsquared(y_test, y_pred))
+        mape.append(np.mean(percent_absolute_error(y_test, y_pred)))
+        mdape.append(np.median(percent_absolute_error(y_test, y_pred)))
+        custom.append(custom_score(y_test, y_pred))
+        train_pred.append(model.predict(X.iloc[train_idx]))
+        train_true.append(y.iloc[train_idx])
+        test_pred.append(y_pred)
+        test_true.append(y_test)
+        train_idxs.append(train_idx)
+        test_idxs.append(test_idx)
+        
+
+    return {
+        "eval_r2": r2,
+        "eval_mape": mape,
+        "eval_mdape": mdape,
+        "eval_consensus": custom,
+        "train_pred": train_pred,
+        "train_true": train_true,
+        "train_idx": train_idxs,
+        "test_pred": test_pred,
+        "test_true": test_true,
+        "test_idx": test_idxs,
+    }
+
+
+def bootstrap_uncertainty(X, y, filtered=True):
+
+    coef_list = []
+    int_list = []
+    n = len(X)
+
+    success = 0
+
+    for _ in range(N_BOOTSTRAP):
+        idx = np.random.choice(n, size=n, replace=True)
+        model = LinearRegression()
+        model.fit(X.iloc[idx], y.iloc[idx])
+        if filtered:
+            y_true, y_pred = y.iloc[idx], model.predict(X.iloc[idx])
+            r2 = rsquared(y_true, y_pred)
+            mape = np.mean(percent_absolute_error(y_true, y_pred))
+            mdape = np.median(percent_absolute_error(y_true, y_pred))
+            if (r2 > FILTER_R2) & (mape < FILTER_MAPE) & (mdape < FILTER_MDAPE):
+                coef_list.append(model.coef_)
+                int_list.append(model.intercept_)
+                success += 1
+
+    coef_arr = np.array(coef_list)
+    int_arr = np.array(int_list)
+
+    return pd.DataFrame.from_dict(
+        {
+            "Predictor": X.columns.tolist() + ["Intercept"],
+            "coef_mean": np.concatenate([coef_arr.mean(axis=0), [int_arr.mean()]]),
+            "coef_std": np.concatenate([coef_arr.std(axis=0), [int_arr.std()]]),
+            "lower": np.concatenate([np.percentile(coef_arr, 10, axis=0), [np.percentile(int_arr, 10)]]),
+            "upper": np.concatenate([np.percentile(coef_arr, 90, axis=0), [np.percentile(int_arr, 90)]]),
+            "p_success": success/N_BOOTSTRAP
+        }
+    )
+
+
+def fit_linear(data, metric, predictors, production=True):
+
+    # Arrange response variable
+    y = np.log(data[metric].replace(0, FILL_ZERO))
+
+    # Initialize key variables
+    subsets, best_subset, model_eval, model_uncertainty = None, None, None, None
+    eval_test, eval_fig = None, None
+
+    if production:
+
+        # Bootstrapping best model predictor combination
+        best_subset = LINEAR_PROD[metric]
+        data = parse_transformations(data, best_subset)
+        X = data[best_subset]
+        X_best = data[best_subset]
+        results = repeat_linear_models(X, y)
+        eval_test = summarize_evaluation(
+                np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
+            )
+        eval_fig = plot_model_eval_uncertainty(
+                np.exp(np.concatenate(results["train_true"] + results["test_true"])),
+                np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
+                np.concatenate(results['train_idx'] + results['test_idx'])
+            )
+        model_uncertainty = bootstrap_uncertainty(X_best, y)
+
+        # Load presaved model evaluation data
+        model_eval = pd.read_csv(os.path.join("assets", f"linear_{metric}.csv"))
+        subsets = model_eval['Permutation'].tolist()
+        model_eval.set_index('Permutation', inplace=True)
+
+    else:
+        predictors = LINEAR_TERMS[metric]
+
+        # Arrange different subsets of predictors
+        data = parse_transformations(data, predictors)
+        subsets = generate_predictor_subsets(predictors)
+        subsets_tuple = [tuple(s) for s in subsets]
+
+        # Initialize stores
+        model_eval = pd.DataFrame(
+            index=subsets_tuple,
+            columns=["eval_r2", "eval_mape", "eval_mdape", "eval_consensus"],
+        )
+
+        # Iterate through each subset of predictors
+        for subset in subsets_tuple:
+
+            # Arrange explanatory variables
+            X = data[list(subset)]
+
+            # Repeat model fitting with different splits
+            results = repeat_linear_models(X, y)
+            eval_test = summarize_evaluation(
+                np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
+            )
+            eval_fig = plot_model_eval_uncertainty(
+                np.exp(np.concatenate(results["train_true"] + results["test_true"])),
+                np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
+                np.concatenate(results['train_idx'] + results['test_idx'])
+            )
+
+            # Store mean results
+            for r in ["r2", "mape", "mdape", "consensus"]:
+                model_eval.at[subset, f"eval_{r}"] = np.mean(results[f"eval_{r}"])
+
+
+        # Manual ranking - select best model
+        model_eval = model_eval.sort_values(by="eval_consensus", ascending=True)
+        best_subset = model_eval.index[0]
+        X_best = X[list(best_subset)]
+
+        # Estimate uncertainty for best model
+        model_uncertainty = bootstrap_uncertainty(X_best, y)
+
+    # Assemble final output
+    summary = {
+        "subset": list(best_subset),
+        "eval": model_eval,
+        "coef": model_uncertainty,
+    }
+
+    # Refit best model using mean coefficients
+    mean_coef = model_uncertainty['coef_mean'].values
+    dummy_X = np.zeros((2, len(mean_coef)-1))
+    dummy_y = np.zeros(2)
+    mean_model = LinearRegression().fit(dummy_X, dummy_y) # dummy model to overwrite
+    mean_model.coef_ = mean_coef[:-1]
+    mean_model.intercept_ = mean_coef[-1]
+    mean_model.feature_names_in_ = np.array(best_subset)
+    predictors = model_uncertainty['Predictor'].values[:-1]
+    mean_y_pred = mean_model.predict(X[predictors])
+    eval_train = summarize_evaluation(y, mean_y_pred)
+
+    # Best model summary
+    best_disp = model_uncertainty.copy()
+    for col in best_disp.columns:
+        if col != "Predictor":
+            best_disp[col] = best_disp[col].apply(lambda x: f"{x:.3f}")
+    eval_table = DataTable(
+        data=best_disp.to_dict("records"),
+        columns=[
+            {"name": col.replace("coef_", ""), "id": col} for col in best_disp.columns
+        ],
+        style_cell={'fontSize': '0.75em'},
+    )
+    best = dbc.Row(
+        [
+            dbc.ListGroup(
+                        [
+                            dbc.ListGroupItem(f"Test proportion: {LIN_TEST}"),
+                            dbc.ListGroupItem(f"Number of repeats: {LIN_REPEATS}"),
+                            dbc.ListGroupItem(f"Number of bootstrap samples: {N_BOOTSTRAP}"),
+                            html.P(),
+                        ]
+                    ),
+            html.P(
+                f"Out of all model permutations, the selected predictors are: {list(best_subset)}"
+            ),
+            dbc.Col(
+                [
+                    html.B("Model performance:"),
+                    dbc.Row(
+                        [
+                            dbc.Col([html.I("CV (out-of-fold)"), eval_test]),
+                            dbc.Col([html.I("Mean coefficients"), eval_train]),
+                        ]
+                    ),
+                    html.P(),
+                    html.B("Model coefficients"),
+                    eval_table,
+                ],
+                md=6,
+            ),
+            dbc.Col(dcc.Graph(figure=eval_fig)),
+        ]
+    )
+
+    # Model evaluation summary
+    n_permutations = len(subsets)
+    eval_disp = model_eval.reset_index().rename(columns={"index": "Permutation"})
+    eval_disp["Permutation"] = eval_disp["Permutation"].apply(
+        lambda x: ", ".join(x) if isinstance(x, (tuple, list)) else str(x)
+    )
+    for col in eval_disp.columns:
+        if col != "Permutation":
+            eval_disp[col] = eval_disp[col].apply(lambda x: f"{x:.3f}")
+    perm = html.Div(
+        [
+            html.P(
+                f"A total of {n_permutations:,.0f} unique combinations of predictors were investigated"
+            ),
+            DataTable(
+                data=eval_disp.to_dict("records"),
+                columns=[
+                    {"name": col.replace("eval_", ""), "id": col}
+                    for col in eval_disp.columns
+                    if col.startswith("eval_") or col == "Permutation"
+                ],
+                page_size=50,
+                style_cell={'fontSize': '0.75em'}
+            ),
+        ]
+    )
+
+    return summary, best, perm

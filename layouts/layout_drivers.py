@@ -53,7 +53,7 @@ def select_metric(ys):
             html.H5("Displacement metric"),
             dcc.Dropdown(
                 id="rfe-metric-dropdown",
-                options=[{"label": ys[name], "value": name} for name in ys],
+                options=[{"label": ys[name], "value": name} for name in ys if name != 'assisted'],
                 value="sheltered_peak",
                 placeholder="Select displacement metric",
                 style={"marginBottom": "1em"},

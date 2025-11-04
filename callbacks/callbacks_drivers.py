@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import Input, Output, State, html, dcc, ALL, ctx, no_update
 
 from util.plotters import plot_corr_matx, plot_hierarchical_cluster, plot_mutual_information
-from util.analysis import run_rfe
+from util.analysis import run_rfe, fit_linear
 from _config import *
 
 
@@ -87,6 +87,21 @@ def summary_rfe(summary, plot_feature, plot_pdp, plot_int):
     )
 
     return narrative
+
+
+def summary_linear(results, best, perm):
+
+    return html.Div(
+        [
+            html.H3("Predictive model fitting"),
+            html.P(NARRATIVE_LIN),
+            html.H4("Selected model"),
+            best,
+            html.H4("All model permutations"),
+            perm,
+
+        ]
+    )
 
 
 def register_callbacks_drivers(app, df, drivers, production=True):
@@ -179,7 +194,8 @@ def register_callbacks_drivers(app, df, drivers, production=True):
                 summary, plot_feature, plot_pdp, plot_int = run_rfe(drivers, sub, metric, predictors)
                 results = summary_rfe(summary, plot_feature, plot_pdp, plot_int)
             elif model_type == 'linear':
-                results = 'Coming soon!'
+                summary, best, perm = fit_linear(sub, metric, predictors)
+                results = summary_linear(summary, best, perm)
             else:
                 return html.Div([html.P("Error running analysis")]), False
         except Exception as e:

@@ -3,8 +3,7 @@ from dash_bootstrap_templates import load_figure_template
 import dash_bootstrap_components as dbc
 
 from _config import *
-from util.parsers import get_data, get_drivers
-from util.analysis import transform_variables
+from util.parsers import get_data, get_drivers, transform_variables
 
 from layout import main_layout
 from callback import register_callbacks, register_tab_callbacks

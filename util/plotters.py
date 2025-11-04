@@ -90,6 +90,64 @@ def plot_model_eval(y, y_pred):
     return fig_scatter
 
 
+def plot_model_eval_uncertainty(y_true, y_pred, idx):
+
+    all_data = pd.DataFrame({
+        'idx': idx,
+        'y_true': y_true,
+        'y_pred': y_pred,
+    })
+
+    plot_data = all_data.groupby("idx").agg(
+            y_true = ("y_true", "first"),
+            y_pred_mean = ("y_pred", "mean"),
+            y_pred_std = ("y_pred", "std"),
+            y_pred_p10 = ("y_pred", lambda x: np.percentile(x, 10)),
+            y_pred_p90 = ("y_pred", lambda x: np.percentile(x, 90)),
+        ).reset_index()
+
+    # fig_unc = px.violin(
+    #         all_data,
+    #         x="y_true",
+    #         y="y_pred",
+    #         box=True,
+    #         labels={"y": "Observed", "y_pred": "Predicted"},
+    #     )
+
+    fig_unc = px.scatter(
+            plot_data,
+            x="y_true",
+            y="y_pred_mean",
+            error_y=plot_data["y_pred_std"],
+            labels={"y_true": "Observed", "y_pred_mean": "Predicted"},
+            custom_data=["y_pred_std", "y_pred_p10", "y_pred_p90"],
+        )
+    
+    fig_unc.update_traces(
+        marker={"size": 10, "line": dict(width=1, color="white")},
+        hovertemplate="Observed: %{x:,.0f}<br>Predicted: %{y:,.0f}±%{customdata[0]:,.0f}",
+    )
+    
+    fig_unc.add_shape(
+        type="line",
+        x0=min(y_true),
+        x1=max(y_true),
+        y0=min(y_true),
+        y1=max(y_true),
+        line=dict(color="silver", dash="dash"),
+    )
+
+    fig_unc.update_layout(
+        height=400,
+        width=400,
+        yaxis={"type": "log"},
+        xaxis={"type": "log"},
+        margin=dict(l=60, r=40, t=40, b=40),
+    )
+    
+    return fig_unc
+
+
 def plot_corr_matx(sub, metric, drivers, method="pearson"):
 
     # Rename metric for pretty display

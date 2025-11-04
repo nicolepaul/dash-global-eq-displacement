@@ -1,12 +1,12 @@
 import numpy as np
-from sklearn.metrics import root_mean_squared_error
 
 def percent_error(y_true, y_pred):
-    idx = (y_true != 0)
+    idx = (y_true > 1e-6)
     return (y_true[idx] - y_pred[idx]) / y_true[idx]
 
 def percent_absolute_error(y_true, y_pred):
-    return np.abs(percent_error(y_true, y_pred))
+    idx = (y_true > 1e-6)
+    return absolute_error(y_true[idx], y_pred[idx]) / np.abs(y_true[idx])
 
 def absolute_error(y_true, y_pred):
     return np.abs((y_true - y_pred))

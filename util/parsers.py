@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from _config import *
 
 
@@ -50,6 +51,14 @@ def get_data():
 
 def get_drivers():
 
-    drivers = pd.read_csv(PATH_DRIVERS)  # .sort_values(by=['category', 'name'])
+    drivers = pd.read_csv(PATH_DRIVERS)
 
     return drivers
+
+
+def transform_variables(df, drivers):
+    for i, row in drivers.iterrows():
+        if row["transform"] == "log":
+            df[row.variable] = np.log(df[row.variable].replace(0, FILL_ZERO))
+            drivers.loc[i, "name"] = "log(" + drivers.loc[i, "name"] + ")"
+    return df, drivers
