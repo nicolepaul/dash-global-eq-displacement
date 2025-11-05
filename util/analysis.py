@@ -360,41 +360,52 @@ def repeat_linear_models(X, y, seed=42):
     }
 
 
-def bootstrap_uncertainty(X, y, filtered=True):
+def bootstrap_uncertainty(X, y):
 
     coef_list = []
     int_list = []
+    resid_list = []
     n = len(X)
 
     success = 0
 
     for _ in range(N_BOOTSTRAP):
+
+        # Fit model
         idx = np.random.choice(n, size=n, replace=True)
         model = LinearRegression()
         model.fit(X.iloc[idx], y.iloc[idx])
-        if filtered:
-            y_true, y_pred = y.iloc[idx], model.predict(X.iloc[idx])
-            r2 = rsquared(y_true, y_pred)
-            mape = np.mean(percent_absolute_error(y_true, y_pred))
-            mdape = np.median(percent_absolute_error(y_true, y_pred))
-            if (r2 > FILTER_R2) & (mape < FILTER_MAPE) & (mdape < FILTER_MDAPE):
-                coef_list.append(model.coef_)
-                int_list.append(model.intercept_)
-                success += 1
+
+        # Make predictions
+        y_true, y_pred = y.iloc[idx], model.predict(X.iloc[idx])
+
+        # Evaluate model
+        r2 = rsquared(y_true, y_pred)
+        mape = np.mean(percent_absolute_error(y_true, y_pred))
+        mdape = np.median(percent_absolute_error(y_true, y_pred))
+
+        # Only store results that pass certain criteria
+        if (r2 > FILTER_R2) & (mape < FILTER_MAPE) & (mdape < FILTER_MDAPE):
+            coef_list.append(model.coef_)
+            int_list.append(model.intercept_)
+            resid_list.append(y_true - y_pred)
+            success += 1
 
     coef_arr = np.array(coef_list)
     int_arr = np.array(int_list)
+    resid_arr = np.array(resid_list)
 
     return pd.DataFrame.from_dict(
         {
             "Predictor": X.columns.tolist() + ["Intercept"],
             "coef_mean": np.concatenate([coef_arr.mean(axis=0), [int_arr.mean()]]),
+            "coef_median": np.concatenate([np.median(coef_arr, axis=0), [np.median(int_arr)]]), 
             "coef_std": np.concatenate([coef_arr.std(axis=0), [int_arr.std()]]),
             "lower": np.concatenate([np.percentile(coef_arr, 10, axis=0), [np.percentile(int_arr, 10)]]),
             "upper": np.concatenate([np.percentile(coef_arr, 90, axis=0), [np.percentile(int_arr, 90)]]),
-            "p_success": success/N_BOOTSTRAP
+            "b_ratio": success/N_BOOTSTRAP
         }
-    )
+    ), resid_arr
 
 
 def fit_linear(data, metric, predictors, production=True):
@@ -422,7 +433,7 @@ def fit_linear(data, metric, predictors, production=True):
                 np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
                 np.concatenate(results['train_idx'] + results['test_idx'])
             )
-        model_uncertainty = bootstrap_uncertainty(X_best, y)
+        model_uncertainty, resid = bootstrap_uncertainty(X_best, y)
 
         # Load presaved model evaluation data
         model_eval = pd.read_csv(os.path.join("assets", f"linear_{metric}.csv"))
@@ -450,7 +461,7 @@ def fit_linear(data, metric, predictors, production=True):
             X = data[list(subset)]
 
             # Repeat model fitting with different splits
-            results = repeat_linear_models(X, y)
+            result = repeat_linear_models(X, y)
             eval_test = summarize_evaluation(
                 np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
             )
@@ -471,7 +482,7 @@ def fit_linear(data, metric, predictors, production=True):
         X_best = X[list(best_subset)]
 
         # Estimate uncertainty for best model
-        model_uncertainty = bootstrap_uncertainty(X_best, y)
+        model_uncertainty, resid = bootstrap_uncertainty(X_best, y)
 
     # Assemble final output
     summary = {
@@ -480,13 +491,13 @@ def fit_linear(data, metric, predictors, production=True):
         "coef": model_uncertainty,
     }
 
-    # Refit best model using mean coefficients
-    mean_coef = model_uncertainty['coef_mean'].values
-    dummy_X = np.zeros((2, len(mean_coef)-1))
+    # Refit best model using median coefficients
+    sel_coef = model_uncertainty['coef_median'].values
+    dummy_X = np.zeros((2, len(sel_coef)-1))
     dummy_y = np.zeros(2)
     mean_model = LinearRegression().fit(dummy_X, dummy_y) # dummy model to overwrite
-    mean_model.coef_ = mean_coef[:-1]
-    mean_model.intercept_ = mean_coef[-1]
+    mean_model.coef_ = sel_coef[:-1]
+    mean_model.intercept_ = sel_coef[-1]
     mean_model.feature_names_in_ = np.array(best_subset)
     predictors = model_uncertainty['Predictor'].values[:-1]
     mean_y_pred = mean_model.predict(X[predictors])
@@ -523,16 +534,24 @@ def fit_linear(data, metric, predictors, production=True):
                     dbc.Row(
                         [
                             dbc.Col([html.I("CV (out-of-fold)"), eval_test]),
-                            dbc.Col([html.I("Mean coefficients"), eval_train]),
+                            dbc.Col([html.I("Median coefficients"), eval_train]),
                         ]
                     ),
                     html.P(),
                     html.B("Model coefficients"),
                     eval_table,
+                    html.P(),
+                    html.B("Residual analysis"),
+                    dbc.ListGroup([
+                        dbc.ListGroupItem(f"Mean =  {resid.mean():.3f}"),
+                        dbc.ListGroupItem(f"Median =  {np.median(resid):.3f}"),
+                        dbc.ListGroupItem(f"Variance =  {np.var(resid):.3f}"),
+                        dbc.ListGroupItem(f"Standard deviation = {resid.std():.3f}"),
+                    ]),
                 ],
                 md=6,
             ),
-            dbc.Col(dcc.Graph(figure=eval_fig)),
+            dbc.Col([dcc.Graph(figure=eval_fig), html.I("Note: Error bars in this plot represent the standard deviation from bootstrapping, and thus the uncertainty around the model's central estimates.")]),
         ]
     )
 

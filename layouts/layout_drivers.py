@@ -2,9 +2,6 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 from _config import *
 
-# TODO: We should include the number of events with selected drivers somewhere to help guide decisions;
-# have some visual indication of model performance
-
 
 def control_analysis():
     return dbc.Row(

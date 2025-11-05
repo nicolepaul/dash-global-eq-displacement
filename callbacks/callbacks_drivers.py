@@ -165,7 +165,7 @@ def register_callbacks_drivers(app, df, drivers, production=True):
             mi_cutoff = mi["Mutual information"].quantile(MI_QUANT)
             mi_keep = mi.loc[mi["Mutual information"] >= mi_cutoff, "Explanatory variable"].tolist()
             keep = list(set(mi_keep) & set(corr_keep))
-            print(f"Selected {len(keep)} features: {keep}")
+            # print(f"Selected {len(keep)} features: {keep}")
 
             return summary_default(drivers, fig_corr, fig_cluster, fig_mi), False
 
