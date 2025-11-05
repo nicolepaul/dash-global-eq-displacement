@@ -101,6 +101,7 @@ def plot_model_eval_uncertainty(y_true, y_pred, idx):
     plot_data = all_data.groupby("idx").agg(
             y_true = ("y_true", "first"),
             y_pred_mean = ("y_pred", "mean"),
+            y_pred_med = ("y_pred", "median"),
             y_pred_std = ("y_pred", "std"),
             y_pred_p10 = ("y_pred", lambda x: np.percentile(x, 10)),
             y_pred_p90 = ("y_pred", lambda x: np.percentile(x, 90)),
@@ -109,9 +110,9 @@ def plot_model_eval_uncertainty(y_true, y_pred, idx):
     fig_unc = px.scatter(
             plot_data,
             x="y_true",
-            y="y_pred_mean",
+            y="y_pred_med",
             error_y=plot_data["y_pred_std"],
-            labels={"y_true": "Observed", "y_pred_mean": "Predicted"},
+            labels={"y_true": "Observed", "y_pred_med": "Predicted"},
             custom_data=["y_pred_std", "y_pred_p10", "y_pred_p90"],
         )
     
