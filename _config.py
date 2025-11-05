@@ -165,8 +165,8 @@ LINEAR_TERMS = {
     "evacuated": ["DESTROYED","I(DESTROYED>9)", "I(DESTROYED>12.5)", "INCOME", "I(INCOME>0.69)"],
 }
 LINEAR_PROD = {
-    "sheltered_peak": ['DESTROYED', 'INCOME', 'I(INCOME>0.7)', 'PALMA'],
-    "protracted": ['DESTROYED', 'I(DESTROYED>10.3)', 'PALMA'], #['DESTROYED', 'PALMA', 'I(PALMA>0.044)'],
+    "sheltered_peak": ['DESTROYED', 'I(INCOME>0.7)', 'I(PALMA>0.065)', 'DESTROYED×INCOME'],
+    "protracted": ['DESTROYED', 'PALMA', 'I(PALMA>0.044)'],
     "evacuated": ['DESTROYED', 'I(DESTROYED>9)'],
 }
 
