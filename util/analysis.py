@@ -499,17 +499,38 @@ def fit_linear(data, metric, predictors, production=True):
         "coef": model_uncertainty,
     }
 
+    # Get residuals analysis - oof
+    resid_oof = dbc.ListGroup(
+        [
+            dbc.ListGroupItem(f"Mean =  {resid.mean():.3f}"),
+            dbc.ListGroupItem(f"Median =  {np.median(resid):.3f}"),
+            dbc.ListGroupItem(f"Variance =  {np.var(resid):.3f}"),
+            dbc.ListGroupItem(f"Standard deviation = {resid.std():.3f}"),
+        ]
+    )
+
     # Refit best model using median coefficients
-    sel_coef = model_uncertainty["coef_median"].values
+    sel_coef = model_uncertainty["coef_mean"].values
     dummy_X = np.zeros((2, len(sel_coef) - 1))
     dummy_y = np.zeros(2)
-    mean_model = LinearRegression().fit(dummy_X, dummy_y)  # dummy model to overwrite
-    mean_model.coef_ = sel_coef[:-1]
-    mean_model.intercept_ = sel_coef[-1]
-    mean_model.feature_names_in_ = np.array(best_subset)
+    sel_model = LinearRegression().fit(dummy_X, dummy_y)  # dummy model to overwrite
+    sel_model.coef_ = sel_coef[:-1]
+    sel_model.intercept_ = sel_coef[-1]
+    sel_model.feature_names_in_ = np.array(best_subset)
     predictors = model_uncertainty["Predictor"].values[:-1]
-    mean_y_pred = mean_model.predict(X[predictors])
-    eval_train = summarize_evaluation(y, mean_y_pred)
+    sel_y_pred = sel_model.predict(X[predictors])
+    eval_train = summarize_evaluation(y, sel_y_pred)
+
+    # Get residuals analysis - median
+    resid_meds = y - sel_y_pred
+    resid_med = dbc.ListGroup(
+        [
+            dbc.ListGroupItem(f"Mean =  {resid_meds.mean():.3f}"),
+            dbc.ListGroupItem(f"Median =  {np.median(resid_meds):.3f}"),
+            dbc.ListGroupItem(f"Variance =  {np.var(resid_meds):.3f}"),
+            dbc.ListGroupItem(f"Standard deviation = {resid_meds.std():.3f}"),
+        ]
+    )
 
     # Best model summary
     best_disp = model_uncertainty.copy()
@@ -543,9 +564,9 @@ def fit_linear(data, metric, predictors, production=True):
                             html.B("Model performance:"),
                             dbc.Row(
                                 [
-                                    dbc.Col([html.I("CV (out-of-fold)"), eval_test]),
+                                    dbc.Col([html.I("Bootstrap (out-of-fold)"), eval_test]),
                                     dbc.Col(
-                                        [html.I("Median coefficients"), eval_train]
+                                        [html.I("Mean coefficients"), eval_train]
                                     ),
                                 ]
                             ),
@@ -554,30 +575,26 @@ def fit_linear(data, metric, predictors, production=True):
                             eval_table,
                             html.P(),
                             html.B("Residual analysis"),
-                            dbc.ListGroup(
+                            dbc.Row(
                                 [
-                                    dbc.ListGroupItem(f"Mean =  {resid.mean():.3f}"),
-                                    dbc.ListGroupItem(
-                                        f"Median =  {np.median(resid):.3f}"
+                                    dbc.Col(
+                                        [html.I("Bootstrap (out-of-fold)"), resid_oof]
                                     ),
-                                    dbc.ListGroupItem(
-                                        f"Variance =  {np.var(resid):.3f}"
-                                    ),
-                                    dbc.ListGroupItem(
-                                        f"Standard deviation = {resid.std():.3f}"
-                                    ),
+                                    dbc.Col([html.I("Mean coefficients"), resid_med]),
                                 ]
                             ),
                         ],
                         md=6,
                     ),
                     dbc.Col(
-                        html.Div([
-                            dcc.Graph(figure=eval_fig),
-                            html.I(
-                                "Note: Error bars in this plot represent the standard deviation from bootstrapping, and thus the uncertainty around the model's central estimates."
-                            ),
-                        ])
+                        html.Div(
+                            [
+                                dcc.Graph(figure=eval_fig),
+                                html.I(
+                                    "Note: Error bars in this plot represent the standard deviation from bootstrapping, and thus the uncertainty around the model's central estimates."
+                                ),
+                            ]
+                        )
                     ),
                 ]
             ),

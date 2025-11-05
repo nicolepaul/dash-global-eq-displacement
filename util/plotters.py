@@ -110,9 +110,9 @@ def plot_model_eval_uncertainty(y_true, y_pred, idx):
     fig_unc = px.scatter(
             plot_data,
             x="y_true",
-            y="y_pred_med",
+            y="y_pred_mean",
             error_y=plot_data["y_pred_std"],
-            labels={"y_true": "Observed", "y_pred_med": "Predicted"},
+            labels={"y_true": "Observed", "y_pred_mean": "Predicted"},
             custom_data=["y_pred_std", "y_pred_p10", "y_pred_p90"],
         )
     
