@@ -97,6 +97,7 @@ def summary_linear(results, best, perm):
             html.P(NARRATIVE_LIN),
             html.H4("Selected model"),
             best,
+            html.Hr(),
             html.H4("All model permutations"),
             perm,
 

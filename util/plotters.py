@@ -106,14 +106,6 @@ def plot_model_eval_uncertainty(y_true, y_pred, idx):
             y_pred_p90 = ("y_pred", lambda x: np.percentile(x, 90)),
         ).reset_index()
 
-    # fig_unc = px.violin(
-    #         all_data,
-    #         x="y_true",
-    #         y="y_pred",
-    #         box=True,
-    #         labels={"y": "Observed", "y_pred": "Predicted"},
-    #     )
-
     fig_unc = px.scatter(
             plot_data,
             x="y_true",

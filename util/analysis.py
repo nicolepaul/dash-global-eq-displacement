@@ -92,7 +92,7 @@ def run_regression(df, x_col, y_col, method="ols", add_trace=True):
     # Get key values
     alpha = lm_fit.params["Intercept"] if hasattr(lm_fit.params, "Intercept") else None
     beta = lm_fit.params["log_x"] if hasattr(lm_fit.params, "log_x") else None
-    df['pred_y'] = lm_fit.predict(df["log_x"])
+    df["pred_y"] = lm_fit.predict(df["log_x"])
 
     # Write narrative
     narrative = []
@@ -344,7 +344,6 @@ def repeat_linear_models(X, y, seed=42):
         test_true.append(y_test)
         train_idxs.append(train_idx)
         test_idxs.append(test_idx)
-        
 
     return {
         "eval_r2": r2,
@@ -395,17 +394,26 @@ def bootstrap_uncertainty(X, y):
     int_arr = np.array(int_list)
     resid_arr = np.array(resid_list)
 
-    return pd.DataFrame.from_dict(
-        {
-            "Predictor": X.columns.tolist() + ["Intercept"],
-            "coef_mean": np.concatenate([coef_arr.mean(axis=0), [int_arr.mean()]]),
-            "coef_median": np.concatenate([np.median(coef_arr, axis=0), [np.median(int_arr)]]), 
-            "coef_std": np.concatenate([coef_arr.std(axis=0), [int_arr.std()]]),
-            "lower": np.concatenate([np.percentile(coef_arr, 10, axis=0), [np.percentile(int_arr, 10)]]),
-            "upper": np.concatenate([np.percentile(coef_arr, 90, axis=0), [np.percentile(int_arr, 90)]]),
-            "b_ratio": success/N_BOOTSTRAP
-        }
-    ), resid_arr
+    return (
+        pd.DataFrame.from_dict(
+            {
+                "Predictor": X.columns.tolist() + ["Intercept"],
+                "coef_mean": np.concatenate([coef_arr.mean(axis=0), [int_arr.mean()]]),
+                "coef_median": np.concatenate(
+                    [np.median(coef_arr, axis=0), [np.median(int_arr)]]
+                ),
+                "coef_std": np.concatenate([coef_arr.std(axis=0), [int_arr.std()]]),
+                "lower": np.concatenate(
+                    [np.percentile(coef_arr, 10, axis=0), [np.percentile(int_arr, 10)]]
+                ),
+                "upper": np.concatenate(
+                    [np.percentile(coef_arr, 90, axis=0), [np.percentile(int_arr, 90)]]
+                ),
+                "b_ratio": success / N_BOOTSTRAP,
+            }
+        ),
+        resid_arr,
+    )
 
 
 def fit_linear(data, metric, predictors, production=True):
@@ -426,19 +434,19 @@ def fit_linear(data, metric, predictors, production=True):
         X_best = data[best_subset]
         results = repeat_linear_models(X, y)
         eval_test = summarize_evaluation(
-                np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
-            )
+            np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
+        )
         eval_fig = plot_model_eval_uncertainty(
-                np.exp(np.concatenate(results["train_true"] + results["test_true"])),
-                np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
-                np.concatenate(results['train_idx'] + results['test_idx'])
-            )
+            np.exp(np.concatenate(results["train_true"] + results["test_true"])),
+            np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
+            np.concatenate(results["train_idx"] + results["test_idx"]),
+        )
         model_uncertainty, resid = bootstrap_uncertainty(X_best, y)
 
         # Load presaved model evaluation data
         model_eval = pd.read_csv(os.path.join("assets", f"linear_{metric}.csv"))
-        subsets = model_eval['Permutation'].tolist()
-        model_eval.set_index('Permutation', inplace=True)
+        subsets = model_eval["Permutation"].tolist()
+        model_eval.set_index("Permutation", inplace=True)
 
     else:
         predictors = LINEAR_TERMS[metric]
@@ -463,18 +471,18 @@ def fit_linear(data, metric, predictors, production=True):
             # Repeat model fitting with different splits
             result = repeat_linear_models(X, y)
             eval_test = summarize_evaluation(
-                np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
+                np.concatenate(results["test_true"]),
+                np.concatenate(results["test_pred"]),
             )
             eval_fig = plot_model_eval_uncertainty(
                 np.exp(np.concatenate(results["train_true"] + results["test_true"])),
                 np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
-                np.concatenate(results['train_idx'] + results['test_idx'])
+                np.concatenate(results["train_idx"] + results["test_idx"]),
             )
 
             # Store mean results
             for r in ["r2", "mape", "mdape", "consensus"]:
                 model_eval.at[subset, f"eval_{r}"] = np.mean(results[f"eval_{r}"])
-
 
         # Manual ranking - select best model
         model_eval = model_eval.sort_values(by="eval_consensus", ascending=True)
@@ -492,14 +500,14 @@ def fit_linear(data, metric, predictors, production=True):
     }
 
     # Refit best model using median coefficients
-    sel_coef = model_uncertainty['coef_median'].values
-    dummy_X = np.zeros((2, len(sel_coef)-1))
+    sel_coef = model_uncertainty["coef_median"].values
+    dummy_X = np.zeros((2, len(sel_coef) - 1))
     dummy_y = np.zeros(2)
-    mean_model = LinearRegression().fit(dummy_X, dummy_y) # dummy model to overwrite
+    mean_model = LinearRegression().fit(dummy_X, dummy_y)  # dummy model to overwrite
     mean_model.coef_ = sel_coef[:-1]
     mean_model.intercept_ = sel_coef[-1]
     mean_model.feature_names_in_ = np.array(best_subset)
-    predictors = model_uncertainty['Predictor'].values[:-1]
+    predictors = model_uncertainty["Predictor"].values[:-1]
     mean_y_pred = mean_model.predict(X[predictors])
     eval_train = summarize_evaluation(y, mean_y_pred)
 
@@ -513,45 +521,66 @@ def fit_linear(data, metric, predictors, production=True):
         columns=[
             {"name": col.replace("coef_", ""), "id": col} for col in best_disp.columns
         ],
-        style_cell={'fontSize': '0.75em'},
+        style_cell={"fontSize": "0.75em"},
     )
-    best = dbc.Row(
+    best = html.Div(
         [
             dbc.ListGroup(
-                        [
-                            dbc.ListGroupItem(f"Test proportion: {LIN_TEST}"),
-                            dbc.ListGroupItem(f"Number of repeats: {LIN_REPEATS}"),
-                            dbc.ListGroupItem(f"Number of bootstrap samples: {N_BOOTSTRAP}"),
-                            html.P(),
-                        ]
-                    ),
+                [
+                    dbc.ListGroupItem(f"Test proportion: {LIN_TEST}"),
+                    dbc.ListGroupItem(f"Number of repeats: {LIN_REPEATS}"),
+                    dbc.ListGroupItem(f"Number of bootstrap samples: {N_BOOTSTRAP}"),
+                    html.P(),
+                ]
+            ),
             html.P(
                 f"Out of all model permutations, the selected predictors are: {list(best_subset)}"
             ),
-            dbc.Col(
+            dbc.Row(
                 [
-                    html.B("Model performance:"),
-                    dbc.Row(
+                    dbc.Col(
                         [
-                            dbc.Col([html.I("CV (out-of-fold)"), eval_test]),
-                            dbc.Col([html.I("Median coefficients"), eval_train]),
-                        ]
+                            html.B("Model performance:"),
+                            dbc.Row(
+                                [
+                                    dbc.Col([html.I("CV (out-of-fold)"), eval_test]),
+                                    dbc.Col(
+                                        [html.I("Median coefficients"), eval_train]
+                                    ),
+                                ]
+                            ),
+                            html.P(),
+                            html.B("Model coefficients"),
+                            eval_table,
+                            html.P(),
+                            html.B("Residual analysis"),
+                            dbc.ListGroup(
+                                [
+                                    dbc.ListGroupItem(f"Mean =  {resid.mean():.3f}"),
+                                    dbc.ListGroupItem(
+                                        f"Median =  {np.median(resid):.3f}"
+                                    ),
+                                    dbc.ListGroupItem(
+                                        f"Variance =  {np.var(resid):.3f}"
+                                    ),
+                                    dbc.ListGroupItem(
+                                        f"Standard deviation = {resid.std():.3f}"
+                                    ),
+                                ]
+                            ),
+                        ],
+                        md=6,
                     ),
-                    html.P(),
-                    html.B("Model coefficients"),
-                    eval_table,
-                    html.P(),
-                    html.B("Residual analysis"),
-                    dbc.ListGroup([
-                        dbc.ListGroupItem(f"Mean =  {resid.mean():.3f}"),
-                        dbc.ListGroupItem(f"Median =  {np.median(resid):.3f}"),
-                        dbc.ListGroupItem(f"Variance =  {np.var(resid):.3f}"),
-                        dbc.ListGroupItem(f"Standard deviation = {resid.std():.3f}"),
-                    ]),
-                ],
-                md=6,
+                    dbc.Col(
+                        html.Div([
+                            dcc.Graph(figure=eval_fig),
+                            html.I(
+                                "Note: Error bars in this plot represent the standard deviation from bootstrapping, and thus the uncertainty around the model's central estimates."
+                            ),
+                        ])
+                    ),
+                ]
             ),
-            dbc.Col([dcc.Graph(figure=eval_fig), html.I("Note: Error bars in this plot represent the standard deviation from bootstrapping, and thus the uncertainty around the model's central estimates.")]),
         ]
     )
 
@@ -577,7 +606,7 @@ def fit_linear(data, metric, predictors, production=True):
                     if col.startswith("eval_") or col == "Permutation"
                 ],
                 page_size=50,
-                style_cell={'fontSize': '0.75em'}
+                style_cell={"fontSize": "0.75em"},
             ),
         ]
     )
