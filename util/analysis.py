@@ -359,7 +359,10 @@ def repeat_linear_models(X, y, seed=42):
     }
 
 
-def bootstrap_uncertainty(X, y):
+def bootstrap_uncertainty(X, y, random_state=303):
+
+    np.random.seed(random_state)
+
 
     coef_list = []
     int_list = []
