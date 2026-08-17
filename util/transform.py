@@ -16,9 +16,6 @@ def parse_transformations(df, features):
     # Model data
     model_data = df.copy()
 
-    # Handle destroyed and damaged capitalization
-    model_data.rename(columns={'damaged': 'DAMAGED', 'destroyed': 'DESTROYED'}, inplace=True)
-
     # Handle any indicator thresholds
     pattern = re.compile(r"^I\(([^>]+)>([^)]+)\)$")
     for feature in features:
@@ -42,15 +39,21 @@ def parse_transformations(df, features):
     return model_data[features]
 
 
-def generate_predictor_subsets(predictors):
+def generate_predictor_subsets(predictors, max_terms=None):
 
     # Assume destroyed is always the first variable and mandatory
     base = predictors[0]
     optional = predictors[1:]
-    
-    # Find all subsets with optional variables
+
+    # Support constraining the number of terms
+    if max_terms is not None:
+        max_optional = max_terms - 1
+    else:
+        max_optional = len(optional)
+
+    # Arrange unique combinations
     subsets = []
-    for r in range(len(optional) + 1):
+    for r in range(0, min(len(optional), max_optional) + 1):
         for combo in combinations(optional, r):
             subset = [base] + list(combo)
             subsets.append(subset)

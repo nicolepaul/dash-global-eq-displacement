@@ -19,7 +19,7 @@ def get_data():
 
     # Duplicate for drivers logic
     data["DAMAGED"] = data["damaged*ahhs"]
-    data["DESTROYED"] = data["(damaged+destroyed)*ahhs-fatalities"]
+    data["DESTROYED"] = data["destroyed*ahhs-fatalities"]
 
     # Hard encode some values
     factors = {
@@ -28,15 +28,15 @@ def get_data():
         "(damaged+destroyed)*ahhs-fatalities": "Residents of damaged + destroyed dwellings",
     }
     metrics = {
-        # "evacuated": "Evacuated (peak)",
         "sheltered_peak": "Sheltered (peak)",
-        "protracted": "Protracted (~6mo)",
-        # "assisted": "Assisted",
+        "snapshot_3mo": "Snapshot (~3mo)",
+        "snapshot_6mo": "Snapshot (~6mo)",
+        "snapshot_12mo": "Snapshot (~12mo)",
     }
 
     categories = {"region": "Geographical region", "income": "Country income level"}
     data["income"] = pd.Categorical(
-        data["income"],
+        data["income_group"],
         categories=[
             "Low income",
             "Lower middle income",
@@ -46,7 +46,7 @@ def get_data():
         ordered=True,
     )
 
-    return data, factors, metrics, categories
+    return data.sort_values(by='DESTROYED'), factors, metrics, categories
 
 
 def get_drivers():
@@ -56,9 +56,11 @@ def get_drivers():
     return drivers
 
 
-def transform_variables(df, drivers):
+def transform_variables(df, drivers, ys):
     for i, row in drivers.iterrows():
         if row["transform"] == "log":
             df[row.variable] = np.log(df[row.variable].replace(0, FILL_ZERO))
             drivers.loc[i, "name"] = "log(" + drivers.loc[i, "name"] + ")"
+    for y in ys:
+        df[y] = df[y].replace(0, FILL_ZERO)
     return df, drivers

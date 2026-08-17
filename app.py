@@ -21,7 +21,7 @@ def create_app(production=True):
 
     df, xs, ys, zs = get_data()
     drivers = get_drivers()
-    df, drivers = transform_variables(df, drivers)
+    df, drivers = transform_variables(df, drivers, list(ys.keys()))
 
     app.layout = main_layout(xs, ys, df, drivers)
 

@@ -18,9 +18,6 @@ def plot_scatter(df, y_choice, x_choice, z_choice):
     zs = df[z_choice].unique()
     REGION_COLORS = {zs[i]: CATEGORICAL_COLORS[i] for i in range(len(zs))}
 
-    df["log_x"] = np.log(df[x_choice].replace(0, FILL_ZERO))
-    df["log_y"] = np.log(df[y_choice].replace(0, FILL_ZERO))
-
     traces = []
     for z in zs:
         sub = df[df[z_choice] == z]
@@ -81,7 +78,7 @@ def plot_model_eval(y, y_pred):
     )
     fig_scatter.update_layout(
         height=400,
-        width=400,
+        width=300,
         yaxis={"type": "log"},
         xaxis={"type": "log"},
         margin=dict(l=60, r=40, t=40, b=40),
@@ -92,35 +89,41 @@ def plot_model_eval(y, y_pred):
 
 def plot_model_eval_uncertainty(y_true, y_pred, idx):
 
-    all_data = pd.DataFrame({
-        'idx': idx,
-        'y_true': y_true,
-        'y_pred': y_pred,
-    })
+    all_data = pd.DataFrame(
+        {
+            "idx": idx,
+            "y_true": y_true,
+            "y_pred": y_pred,
+        }
+    )
 
-    plot_data = all_data.groupby("idx").agg(
-            y_true = ("y_true", "first"),
-            y_pred_mean = ("y_pred", "mean"),
-            y_pred_med = ("y_pred", "median"),
-            y_pred_std = ("y_pred", "std"),
-            y_pred_p10 = ("y_pred", lambda x: np.percentile(x, 10)),
-            y_pred_p90 = ("y_pred", lambda x: np.percentile(x, 90)),
-        ).reset_index()
+    plot_data = (
+        all_data.groupby("idx")
+        .agg(
+            y_true=("y_true", "first"),
+            y_pred_mean=("y_pred", "mean"),
+            y_pred_med=("y_pred", "median"),
+            y_pred_std=("y_pred", "std"),
+            y_pred_p10=("y_pred", lambda x: np.percentile(x, 10)),
+            y_pred_p90=("y_pred", lambda x: np.percentile(x, 90)),
+        )
+        .reset_index()
+    )
 
     fig_unc = px.scatter(
-            plot_data,
-            x="y_true",
-            y="y_pred_mean",
-            error_y=plot_data["y_pred_std"],
-            labels={"y_true": "Observed", "y_pred_mean": "Predicted"},
-            custom_data=["y_pred_std", "y_pred_p10", "y_pred_p90"],
-        )
-    
+        plot_data,
+        x="y_true",
+        y="y_pred_mean",
+        error_y=plot_data["y_pred_std"],
+        labels={"y_true": "Observed", "y_pred_mean": "Predicted"},
+        custom_data=["y_pred_std", "y_pred_p10", "y_pred_p90"],
+    )
+
     fig_unc.update_traces(
         marker={"size": 10, "line": dict(width=1, color="white")},
         hovertemplate="Observed: %{x:,.0f}<br>Predicted: %{y:,.0f}±%{customdata[0]:,.0f}",
     )
-    
+
     fig_unc.add_shape(
         type="line",
         x0=min(y_true),
@@ -132,12 +135,12 @@ def plot_model_eval_uncertainty(y_true, y_pred, idx):
 
     fig_unc.update_layout(
         height=400,
-        width=400,
+        width=300,
         yaxis={"type": "log"},
         xaxis={"type": "log"},
         margin=dict(l=60, r=40, t=40, b=40),
     )
-    
+
     return fig_unc
 
 
@@ -250,8 +253,14 @@ def plot_mutual_information(sub, metric):
 
 def plot_feature_importance(importances, selected):
     fig_imp = go.Figure(
-        [go.Bar(x=importances, y=selected, orientation="h",
-                hovertemplate="<b>%{y}: </b>%{x:.1%}<extra></extra>")]
+        [
+            go.Bar(
+                x=importances,
+                y=selected,
+                orientation="h",
+                hovertemplate="<b>%{y}: </b>%{x:.1%}<extra></extra>",
+            )
+        ]
     )
     fig_imp.update_layout(yaxis=dict(autorange="reversed"))
     return dcc.Graph(figure=fig_imp, style={"height": "400px"})
@@ -261,7 +270,11 @@ def plot_pdp(final_model, X_selected, feat, drivers):
     try:
         pred = partial_dependence(final_model, X_selected, feat, kind="both")
         ice_curves = np.squeeze(pred["individual"])
-        grid = pred["grid_values"][0] if isinstance(pred["grid_values"], (list, tuple)) else pred["grid_values"]
+        grid = (
+            pred["grid_values"][0]
+            if isinstance(pred["grid_values"], (list, tuple))
+            else pred["grid_values"]
+        )
     except Exception:
         return dcc.Graph(figure=EMPTY_FIG, style={"height": "300px"})
 
@@ -269,18 +282,32 @@ def plot_pdp(final_model, X_selected, feat, drivers):
     if ice_curves is not None and ice_curves.ndim == 2:
         for sample_curve in ice_curves:
             fig.add_trace(
-                go.Scatter(x=grid, y=sample_curve, mode="lines", line=dict(width=1, color="silver"), hoverinfo="skip")
+                go.Scatter(
+                    x=grid,
+                    y=sample_curve,
+                    mode="lines",
+                    line=dict(width=1, color="silver"),
+                    hoverinfo="skip",
+                )
             )
 
     avg = ice_curves.mean(axis=0) if ice_curves is not None else np.zeros_like(grid)
     fig.add_trace(
-        go.Scatter(x=grid, y=avg, mode="lines", line=dict(width=3, color="#212121"), name="Average")
+        go.Scatter(
+            x=grid,
+            y=avg,
+            mode="lines",
+            line=dict(width=3, color="#212121"),
+            name="Average",
+        )
     )
 
     title = drivers.loc[drivers.variable == feat, "name"].values
     title = title[0] if len(title) else feat
 
-    fig.update_layout(title=title, showlegend=False, margin=dict(l=40, r=20, t=30, b=30), height=300)
+    fig.update_layout(
+        title=title, showlegend=False, margin=dict(l=40, r=20, t=30, b=30), height=300
+    )
     return dcc.Graph(figure=fig, style={"height": "300px"})
 
 
@@ -290,10 +317,34 @@ def plot_interactions(interaction_df):
         interaction_df,
         color_continuous_scale="RdBu",
         aspect="auto",
-        zmin=-1, # red should be out of scale
+        zmin=-1,  # red should be out of scale
         zmax=1,
         text_auto=".0%",
     )
     fig.update_traces(hovertemplate="%{x}, %{y}:<br><b>%{z:.0%}</b><extra></extra>")
-    fig.update_layout(margin=dict(l=60, r=40, t=40, b=40), coloraxis={"showscale": False})
+    fig.update_layout(
+        margin=dict(l=60, r=40, t=40, b=40), coloraxis={"showscale": False}
+    )
     return dcc.Graph(figure=fig, style={"height": "600px"})
+
+
+def plot_residuals(residuals, x, feat, drivers):
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=residuals,
+            mode="markers",
+            marker=dict(
+                size=10,
+                line=dict(width=1, color="white"),
+            ),
+        )
+    )
+    title = drivers.loc[drivers.variable == feat, "name"].values
+    title = title[0] if len(title) else feat
+    fig.update_layout(
+        title=title, showlegend=False, margin=dict(l=40, r=20, t=30, b=30), height=300
+    )
+    return dcc.Graph(figure=fig, style={"height": "300px"})

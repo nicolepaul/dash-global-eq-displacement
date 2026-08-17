@@ -3,7 +3,7 @@ import dash_bootstrap_components as dbc
 from dash import Input, Output, State, html, dcc, ALL, ctx, no_update
 
 from util.plotters import plot_corr_matx, plot_hierarchical_cluster, plot_mutual_information
-from util.analysis import run_rfe, fit_linear
+from util.analysis import run_tree_rfe, fit_linear
 from _config import *
 
 
@@ -192,10 +192,10 @@ def register_callbacks_drivers(app, df, drivers, production=True):
         results = None
         try:
             if model_type == 'xgboost':
-                summary, plot_feature, plot_pdp, plot_int = run_rfe(drivers, sub, metric, predictors)
+                summary, plot_feature, plot_pdp, plot_int = run_tree_rfe(drivers, sub, metric, predictors, production=production)
                 results = summary_rfe(summary, plot_feature, plot_pdp, plot_int)
             elif model_type == 'linear':
-                summary, best, perm = fit_linear(sub, metric, predictors)
+                summary, best, perm = fit_linear(drivers, sub, metric, predictors, production=production)
                 results = summary_linear(summary, best, perm)
             else:
                 return html.Div([html.P("Error running analysis")]), False

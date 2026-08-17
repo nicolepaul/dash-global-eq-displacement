@@ -23,7 +23,7 @@ def register_callbacks_damage(app, df):
 
         narrative = NARRATIVE_REGRESSION
 
-        if regression_option != 'none':
+        if regression_option != "none":
             trace, narrative = run_regression(
                 df, x_choice, y_choice, method=regression_option
             )
@@ -65,11 +65,42 @@ def register_callbacks_damage(app, df):
 
         def parse_event_info(row):
             heading = html.H4(row["event"] + ", " + row["country"])
+            display_items = {
+                "date_mainshock": "Mainshock date",
+                "magnitude": "Magnitude (Mw)",
+                "ahhs": "Average household size",
+                "damaged": "Damaged homes",
+                "destroyed": "Destroyed homes",
+                "fatalities": "Fatalities",
+                "sheltered_peak": "Sheltered (peak)",
+                "snapshot_1mo": "Snapshot (~1mo)",
+                "snapshot_3mo": "Snapshot (~3mo)",
+                "snapshot_6mo": "Snapshot (~6mo)",
+                "snapshot_12mo": "Snapshot (~12mo)",
+                "snapshot_18mo": "Snapshot (~18mo)",
+                "snapshot_24mo": "Snapshot (~24mo)",
+            }
+            items = []
+            for item in display_items:
+                value = row[item]
+                if value:
+                    if item not in ["date_mainshock", "ahhs", "magnitude"]:
+                        items.append(
+                            dbc.ListGroupItem(
+                                f"{display_items[item]} = {value:,.0f}"
+                            )
+                        )
+                    else:
+                        items.append(
+                            dbc.ListGroupItem(f"{display_items[item]} = {value}")
+                        )
+
+            details = html.P(dbc.ListGroup(items, flush=True))
             body = dcc.Markdown(row["narrative"])
             footing = html.A(
                 "← Back to global data definitions", href="#", id="back-link"
             )
-            return dbc.CardBody([heading, body, footing])
+            return dbc.CardBody([heading, body, details, footing])
 
         if mode == "default":
             return dbc.CardBody(DEFAULT_TEXT)

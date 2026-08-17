@@ -9,8 +9,8 @@ import statsmodels.formula.api as smf
 
 from xgboost import XGBRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import KFold, RepeatedKFold, GridSearchCV, train_test_split
-from sklearn.metrics import make_scorer, root_mean_squared_error
+from sklearn.model_selection import RepeatedKFold, GridSearchCV, train_test_split
+from sklearn.metrics import make_scorer
 from sklearn.feature_selection import RFECV
 
 from util.transform import (
@@ -33,6 +33,7 @@ from util.plotters import (
     plot_pdp,
     plot_interactions,
     plot_model_eval_uncertainty,
+    plot_residuals,
 )
 
 
@@ -155,6 +156,8 @@ def summarize_model(params):
     items.append(dbc.ListGroupItem(f"Max depth = {params.get('max_depth','')}"))
     items.append(dbc.ListGroupItem(f"Learning rate = {params.get('learning_rate','')}"))
     items.append(dbc.ListGroupItem(f"Gamma = {params.get('gamma','')}"))
+    items.append(dbc.ListGroupItem(f"Alpha = {params.get('reg_alpha','')}"))
+    items.append(dbc.ListGroupItem(f"Lambda = {params.get('reg_lambda','')}"))
     items.append(
         dbc.ListGroupItem(f"Min child weight = {params.get('min_child_weight','')}")
     )
@@ -170,9 +173,6 @@ def summarize_evaluation(y, y_pred):
             dbc.ListGroupItem(
                 f"Mean abs. percent error = {np.mean(percent_absolute_error(y, y_pred)):.1%}"
             ),
-            dbc.ListGroupItem(
-                f"Root mean square error = {root_mean_squared_error(y, y_pred):.3f}"
-            ),
             dbc.ListGroupItem(f"R² = {rsquared(y, y_pred):.1%}"),
             dbc.ListGroupItem(f"Consensus score = {custom_score(y, y_pred):.1%}"),
         ]
@@ -180,6 +180,17 @@ def summarize_evaluation(y, y_pred):
         eval_items = [dbc.ListGroupItem(f"Error computing metrics: {e}")]
 
     return dbc.Row([dbc.ListGroup(eval_items, flush=True)])
+
+
+def summarize_residuals(resid):
+    return dbc.ListGroup(
+        [
+            dbc.ListGroupItem(f"Mean = {np.mean(resid):.3f}"),
+            dbc.ListGroupItem(f"Median = {np.median(resid):.3f}"),
+            dbc.ListGroupItem(f"Variance = {np.var(resid):.3f}"),
+            dbc.ListGroupItem(f"Standard deviation = {np.std(resid):.3f}"),
+        ]
+    )
 
 
 def compute_interactions(model, X, features):
@@ -194,74 +205,102 @@ def compute_interactions(model, X, features):
     return interaction_strength
 
 
-def run_rfe(drivers, sub, metric, predictors, production=True):
+def run_tree_rfe(drivers, sub, metric, predictors, production=True):
+    fit = specify_tree(sub, metric, predictors, production=production)
+    if fit is None:
+        return (
+            f"Production version hyperparameters or terms not configured for {metric}",
+            EMPTY_FIG,
+            [],
+            [],
+        )
+    if not fit["selected"]:
+        return (
+            [html.P("No features were selected. Try different predictors.")],
+            EMPTY_FIG,
+            [],
+            [],
+        )
+    evaluation = evaluate_tree(fit)
+    return render_tree_summary(drivers, fit, evaluation)
 
-    # Arrange response and explanatory variables
+
+def specify_tree(sub, metric, predictors, production=True):
+
     X, y = sub[predictors], np.log(sub[metric].replace(0, FILL_ZERO))
-
-    # Tune hyperparameters
-    params = None
+    cv = RepeatedKFold(n_splits=CV, n_repeats=S, random_state=CV_SEED)
     mape_scorer = make_scorer(custom_score, greater_is_better=False)
-    if production:  # hard-coded to save computation time
-        if metric in PARAM_PROD:
-            params = PARAM_PROD[metric]
 
-        else:
-            return (
-                f"Production version hyperparameters not configured for {metric}",
-                EMPTY_FIG,
-                [],
-            )
-
+    if production:
+        if metric not in PARAM_PROD:
+            return None
+        params = PARAM_PROD[metric]
+        selected = TREE_PROD[metric]
     else:
+        print("running in non-production mode (will take some time)")
         grid = GridSearchCV(
             XGBRegressor(random_state=MODEL_SEED),
             param_grid=PARAM_GRID,
-            cv=CV,
+            cv=cv,
             scoring=mape_scorer,
             n_jobs=1,
         )
         grid.fit(X, y)
         params = grid.best_params_
+
+        model = XGBRegressor(random_state=MODEL_SEED, **params)
+        rfecv = RFECV(model, cv=cv, scoring=mape_scorer, step=1, n_jobs=1)
+        rfecv.fit(X, y)
+        selected = list(X.columns[rfecv.support_])
+
+    final_model = XGBRegressor(random_state=MODEL_SEED, **params)
+    final_model.fit(X[selected], y)
+
+    return {
+        "X": X,
+        "y": y,
+        "cv": cv,
+        "params": params,
+        "selected": selected,
+        "final_model": final_model,
+    }
+
+
+def evaluate_tree(fit):
+
+    X, y, cv = fit["X"], fit["y"], fit["cv"]
+    selected, params, final_model = fit["selected"], fit["params"], fit["final_model"]
+
+    return {
+        "oof_preds": compute_oof_predictions(X, y, selected, params, cv),
+        "y_pred": final_model.predict(X[selected]),
+        "importances": final_model.feature_importances_,
+        "interaction_df": compute_interactions(final_model, X[selected], selected),
+    }
+
+
+def render_tree_summary(drivers, fit, evaluation):
+
+    X, y, selected, params, final_model = (
+        fit["X"],
+        fit["y"],
+        fit["selected"],
+        fit["params"],
+        fit["final_model"],
+    )
+    oof_preds, y_pred = evaluation["oof_preds"], evaluation["y_pred"]
+
     parm = summarize_model(params)
-
-    # Use CV with RFE to select features; use repeats if not in production mode
-    model = XGBRegressor(random_state=MODEL_SEED, **params)
-    cv = KFold(n_splits=CV, shuffle=True, random_state=CV_SEED)
-    if not production:
-        cv = RepeatedKFold(n_splits=CV, n_repeats=S, random_state=CV_SEED)
-    rfecv = RFECV(model, cv=cv, scoring=mape_scorer, step=1, n_jobs=1)
-    rfecv.fit(X, y)
-    selected = list(X.columns[rfecv.support_])
-
-    # Arrange text summary
     summ = dbc.Row(
         [
             html.B(f"Selected {len(selected)} feature(s):"),
-            dbc.ListGroup(
-                [dbc.ListGroupItem(sel) for sel in selected],
-                flush=True,
-            ),
+            dbc.ListGroup([dbc.ListGroupItem(sel) for sel in selected], flush=True),
         ]
     )
-
-    # Get out-of-fold predictions
-    cv = KFold(n_splits=CV, shuffle=True, random_state=CV_SEED)
-    oof_preds = np.zeros_like(y, dtype=float)
-    for train_idx, test_idx in cv.split(X):
-        fold_model = XGBRegressor(**params)
-        fold_model.fit(X.iloc[train_idx][selected], y.iloc[train_idx])
-        oof_preds[test_idx] = fold_model.predict(X.iloc[test_idx][selected])
     eval_oof = summarize_evaluation(y, oof_preds)
-
-    # Refit final model
-    final_model = XGBRegressor(**params)
-    final_model.fit(X[selected], y)
-
-    # Evaluate model
-    y_pred = final_model.predict(X[selected])
     eval_train = summarize_evaluation(y, y_pred)
     fig_eval = plot_model_eval(np.exp(y), np.exp(y_pred))
+
     summary = [
         dbc.Row(
             [
@@ -269,10 +308,11 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
                     [
                         dbc.ListGroup(
                             [
-                                dbc.ListGroupItem(f"Number of events: {len(sub)}"),
+                                dbc.ListGroupItem(f"Number of events: {len(X)}"),
                                 dbc.ListGroupItem(
                                     f"Number of cross-validation folds: {CV}"
                                 ),
+                                dbc.ListGroupItem(f"Number of sample repeats: {S}"),
                                 html.P(),
                             ]
                         ),
@@ -293,26 +333,22 @@ def run_rfe(drivers, sub, metric, predictors, production=True):
         )
     ]
 
-    # Feature importance plot
-    importances = final_model.feature_importances_
-    fig_feature = plot_feature_importance(importances, selected)
-
-    # PDPs for each selected features
-    figs_pdp = []
-    if not selected:
-        return (
-            [html.P("No features were selected. Try different predictors.")],
-            EMPTY_FIG,
-            [],
-        )
-    for feat in selected:
-        figs_pdp.append(plot_pdp(final_model, X[selected], feat, drivers))
-
-    # Compute interaction strengths
-    interaction_df = compute_interactions(final_model, X[selected], selected)
-    fig_interaction = plot_interactions(interaction_df)
+    fig_feature = plot_feature_importance(evaluation["importances"], selected)
+    figs_pdp = [plot_pdp(final_model, X[selected], feat, drivers) for feat in selected]
+    fig_interaction = plot_interactions(evaluation["interaction_df"])
 
     return summary, fig_feature, figs_pdp, fig_interaction
+
+
+def compute_oof_predictions(X, y, selected, params, cv, seed=MODEL_SEED):
+    oof_sum, oof_count = np.zeros(len(y)), np.zeros(len(y))
+    for train_idx, test_idx in cv.split(X):
+        fold_model = XGBRegressor(random_state=seed, **params)
+        fold_model.fit(X.iloc[train_idx][selected], y.iloc[train_idx])
+        preds = fold_model.predict(X.iloc[test_idx][selected])
+        oof_sum[test_idx] += preds
+        oof_count[test_idx] += 1
+    return oof_sum / oof_count
 
 
 def repeat_linear_models(X, y, seed=42):
@@ -363,13 +399,10 @@ def bootstrap_uncertainty(X, y, random_state=303):
 
     np.random.seed(random_state)
 
-
     coef_list = []
     int_list = []
     resid_list = []
     n = len(X)
-
-    success = 0
 
     for _ in range(N_BOOTSTRAP):
 
@@ -381,17 +414,10 @@ def bootstrap_uncertainty(X, y, random_state=303):
         # Make predictions
         y_true, y_pred = y.iloc[idx], model.predict(X.iloc[idx])
 
-        # Evaluate model
-        r2 = rsquared(y_true, y_pred)
-        mape = np.mean(percent_absolute_error(y_true, y_pred))
-        mdape = np.median(percent_absolute_error(y_true, y_pred))
-
-        # Only store results that pass certain criteria
-        if (r2 > FILTER_R2) & (mape < FILTER_MAPE) & (mdape < FILTER_MDAPE):
-            coef_list.append(model.coef_)
-            int_list.append(model.intercept_)
-            resid_list.append(y_true - y_pred)
-            success += 1
+        # Store results
+        coef_list.append(model.coef_)
+        int_list.append(model.intercept_)
+        resid_list.append(y_true - y_pred)
 
     coef_arr = np.array(coef_list)
     int_arr = np.array(int_list)
@@ -412,130 +438,136 @@ def bootstrap_uncertainty(X, y, random_state=303):
                 "upper": np.concatenate(
                     [np.percentile(coef_arr, 90, axis=0), [np.percentile(int_arr, 90)]]
                 ),
-                "b_ratio": success / N_BOOTSTRAP,
             }
         ),
         resid_arr,
     )
 
+def fit_linear(drivers, data, metric, predictors, production=True):
+    fit = specify_linear(data, metric, predictors, production=production)
+    evaluation = evaluate_linear(fit)
+    return render_linear_summary(drivers, fit, evaluation)
 
-def fit_linear(data, metric, predictors, production=True):
 
-    # Arrange response variable
+def specify_linear(data, metric, predictors, production=True):
+
     y = np.log(data[metric].replace(0, FILL_ZERO))
-
-    # Initialize key variables
-    subsets, best_subset, model_eval, model_uncertainty = None, None, None, None
-    eval_test, eval_fig = None, None
+    predictors = LINEAR_PROD[metric] if production else LINEAR_TERMS[metric]
+    data_transformed = parse_transformations(data, predictors)
 
     if production:
-
-        # Bootstrapping best model predictor combination
         best_subset = LINEAR_PROD[metric]
-        data = parse_transformations(data, best_subset)
-        X = data[best_subset]
-        X_best = data[best_subset]
-        results = repeat_linear_models(X, y)
-        eval_test = summarize_evaluation(
-            np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
-        )
-        eval_fig = plot_model_eval_uncertainty(
-            np.exp(np.concatenate(results["train_true"] + results["test_true"])),
-            np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
-            np.concatenate(results["train_idx"] + results["test_idx"]),
-        )
-        model_uncertainty, resid = bootstrap_uncertainty(X_best, y)
-
-        # Load presaved model evaluation data
         model_eval = pd.read_csv(os.path.join("assets", f"linear_{metric}.csv"))
         subsets = model_eval["Permutation"].tolist()
         model_eval.set_index("Permutation", inplace=True)
 
     else:
-        predictors = LINEAR_TERMS[metric]
-
-        # Arrange different subsets of predictors
-        data = parse_transformations(data, predictors)
-        subsets = generate_predictor_subsets(predictors)
+        print("fitting in non-production mode; may take some minutes...")
+        subsets = generate_predictor_subsets(predictors, max_terms=MAX_TERMS)
         subsets_tuple = [tuple(s) for s in subsets]
 
-        # Initialize stores
         model_eval = pd.DataFrame(
             index=subsets_tuple,
             columns=["eval_r2", "eval_mape", "eval_mdape", "eval_consensus"],
         )
-
-        # Iterate through each subset of predictors
         for subset in subsets_tuple:
+            X = data_transformed[list(subset)].copy()
+            subset_results = repeat_linear_models(X, y)
+            pooled_true = np.concatenate(subset_results["test_true"])
+            pooled_pred = np.concatenate(subset_results["test_pred"])
+            model_eval.at[subset, "eval_r2"] = rsquared(pooled_true, pooled_pred)
+            model_eval.at[subset, "eval_mape"] = np.mean(percent_absolute_error(pooled_true, pooled_pred))
+            model_eval.at[subset, "eval_mdape"] = np.median(percent_absolute_error(pooled_true, pooled_pred))
+            model_eval.at[subset, "eval_consensus"] = custom_score(pooled_true, pooled_pred)
 
-            # Arrange explanatory variables
-            X = data[list(subset)]
-
-            # Repeat model fitting with different splits
-            result = repeat_linear_models(X, y)
-            eval_test = summarize_evaluation(
-                np.concatenate(results["test_true"]),
-                np.concatenate(results["test_pred"]),
-            )
-            eval_fig = plot_model_eval_uncertainty(
-                np.exp(np.concatenate(results["train_true"] + results["test_true"])),
-                np.exp(np.concatenate(results["train_pred"] + results["test_pred"])),
-                np.concatenate(results["train_idx"] + results["test_idx"]),
-            )
-
-            # Store mean results
-            for r in ["r2", "mape", "mdape", "consensus"]:
-                model_eval.at[subset, f"eval_{r}"] = np.mean(results[f"eval_{r}"])
-
-        # Manual ranking - select best model
         model_eval = model_eval.sort_values(by="eval_consensus", ascending=True)
+        model_eval.to_csv(os.path.join("assets", f"linear_{metric}.csv"), index_label="Permutation") # not relevant for prod mode
         best_subset = model_eval.index[0]
-        X_best = X[list(best_subset)]
+        subsets = subsets_tuple
 
-        # Estimate uncertainty for best model
-        model_uncertainty, resid = bootstrap_uncertainty(X_best, y)
+    X_best = data_transformed[list(best_subset)].copy()
+    model_uncertainty, _ = bootstrap_uncertainty(X_best, y)
 
-    # Assemble final output
-    summary = {
-        "subset": list(best_subset),
-        "eval": model_eval,
-        "coef": model_uncertainty,
+    return {
+        "y": y,
+        "data_transformed": data_transformed,
+        "best_subset": list(best_subset),
+        "model_eval": model_eval,
+        "model_uncertainty": model_uncertainty,
+        "X_best": X_best,
+        "subsets": subsets,
     }
 
-    # Get residuals analysis - oof
-    resid_oof = dbc.ListGroup(
-        [
-            dbc.ListGroupItem(f"Mean =  {resid.mean():.3f}"),
-            dbc.ListGroupItem(f"Median =  {np.median(resid):.3f}"),
-            dbc.ListGroupItem(f"Variance =  {np.var(resid):.3f}"),
-            dbc.ListGroupItem(f"Standard deviation = {resid.std():.3f}"),
-        ]
+
+def evaluate_linear(fit):
+
+    y, data_transformed, X_best = fit["y"], fit["data_transformed"], fit["X_best"]
+    best_predictors = fit["model_uncertainty"]["Predictor"].values[:-1]
+
+    results = repeat_linear_models(X_best, y)
+    resid_hos = np.concatenate(results["test_true"]) - np.concatenate(
+        results["test_pred"]
     )
 
-    # Refit best model using median coefficients
-    sel_coef = model_uncertainty["coef_mean"].values
-    dummy_X = np.zeros((2, len(sel_coef) - 1))
-    dummy_y = np.zeros(2)
-    sel_model = LinearRegression().fit(dummy_X, dummy_y)  # dummy model to overwrite
-    sel_model.coef_ = sel_coef[:-1]
-    sel_model.intercept_ = sel_coef[-1]
-    sel_model.feature_names_in_ = np.array(best_subset)
-    predictors = model_uncertainty["Predictor"].values[:-1]
-    sel_y_pred = sel_model.predict(X[predictors])
+    sel_model = LinearRegression().fit(X_best, y)
+    sel_y_pred = sel_model.predict(data_transformed[best_predictors])
+    sel_coef = np.append(sel_model.coef_, sel_model.intercept_)
+    resid_ffs = y - sel_y_pred
+
+    model_uncertainty = fit["model_uncertainty"].copy()
+    model_uncertainty["full_fit"] = sel_coef
+
+    return {
+        "results": results,
+        "resid_hos": resid_hos,
+        "sel_y_pred": sel_y_pred,
+        "resid_ffs": resid_ffs,
+        "model_uncertainty": model_uncertainty,
+        "best_predictors": best_predictors,
+    }
+
+
+def render_linear_summary(drivers, fit, evaluation):
+
+    # Arrange information
+    y, data_transformed, X_best = fit["y"], fit["data_transformed"], fit["X_best"]
+    best_subset, model_eval, subsets = (
+        fit["best_subset"],
+        fit["model_eval"],
+        fit["subsets"],
+    )
+
+    results, resid_hos = evaluation["results"], evaluation["resid_hos"]
+    sel_y_pred, resid_ffs = evaluation["sel_y_pred"], evaluation["resid_ffs"]
+    model_uncertainty, best_predictors = (
+        evaluation["model_uncertainty"],
+        evaluation["best_predictors"],
+    )
+
+    summary = {"subset": best_subset, "eval": model_eval, "coef": model_uncertainty}
+
+    # Held out set
+    eval_test = summarize_evaluation(
+        np.concatenate(results["test_true"]), np.concatenate(results["test_pred"])
+    )
+    eval_fig_ho = plot_model_eval_uncertainty(
+        np.exp(np.concatenate(results["test_true"])),
+        np.exp(np.concatenate(results["test_pred"])),
+        np.concatenate(results["test_idx"]),
+    )
+    resid_ho = summarize_residuals(resid_hos)
+
+    # Proposed model (full fit)
     eval_train = summarize_evaluation(y, sel_y_pred)
+    eval_fig_ff = plot_model_eval(np.exp(y), np.exp(sel_y_pred))
+    resid_ff = summarize_residuals(resid_ffs)
 
-    # Get residuals analysis - median
-    resid_meds = y - sel_y_pred
-    resid_med = dbc.ListGroup(
-        [
-            dbc.ListGroupItem(f"Mean =  {resid_meds.mean():.3f}"),
-            dbc.ListGroupItem(f"Median =  {np.median(resid_meds):.3f}"),
-            dbc.ListGroupItem(f"Variance =  {np.var(resid_meds):.3f}"),
-            dbc.ListGroupItem(f"Standard deviation = {resid_meds.std():.3f}"),
-        ]
-    )
+    figs_resid = [
+        plot_residuals(resid_ffs, X_best[feat], feat, drivers)
+        for feat in best_predictors
+    ]
 
-    # Best model summary
+    # Bootstrapping results with proposed model (full fit)
     best_disp = model_uncertainty.copy()
     for col in best_disp.columns:
         if col != "Predictor":
@@ -543,10 +575,28 @@ def fit_linear(data, metric, predictors, production=True):
     eval_table = DataTable(
         data=best_disp.to_dict("records"),
         columns=[
-            {"name": col.replace("coef_", ""), "id": col} for col in best_disp.columns
+            {
+                "name": "proposed" if col == "full_fit" else col.replace("coef_", ""),
+                "id": col,
+            }
+            for col in best_disp.columns
         ],
         style_cell={"fontSize": "0.75em"},
+        style_data_conditional=[
+            {"if": {"column_id": "full_fit"}, "fontWeight": "bold"}
+        ],
     )
+    coef_range = dbc.ListGroup(
+        [
+            dbc.ListGroupItem(
+                f"{data_transformed[coef].min():.2f} ≤ {coef} ≤ {data_transformed[coef].max():.2f}"
+            )
+            for coef in best_disp["Predictor"]
+            if coef != "Intercept"
+        ]
+    )
+
+    # Construct summary
     best = html.Div(
         [
             dbc.ListGroup(
@@ -558,44 +608,60 @@ def fit_linear(data, metric, predictors, production=True):
                 ]
             ),
             html.P(
-                f"Out of all model permutations, the selected predictors are: {list(best_subset)}"
+                f"Out of all model permutations, the selected predictors are: {best_subset}"
             ),
             dbc.Row(
                 [
                     dbc.Col(
                         [
-                            html.B("Model performance:"),
-                            dbc.Row(
-                                [
-                                    dbc.Col([html.I("Bootstrap (out-of-fold)"), eval_test]),
-                                    dbc.Col(
-                                        [html.I("Mean coefficients"), eval_train]
-                                    ),
-                                ]
-                            ),
-                            html.P(),
                             html.B("Model coefficients"),
                             eval_table,
                             html.P(),
-                            html.B("Residual analysis"),
+                            html.B("Predictor ranges"),
+                            coef_range,
+                            html.P(),
+                            html.B("Model evaluation"),
                             dbc.Row(
                                 [
                                     dbc.Col(
-                                        [html.I("Bootstrap (out-of-fold)"), resid_oof]
+                                        [
+                                            html.I("Held-out splits"),
+                                            eval_test,
+                                            dcc.Graph(figure=eval_fig_ho),
+                                        ]
                                     ),
-                                    dbc.Col([html.I("Mean coefficients"), resid_med]),
+                                    dbc.Col(
+                                        [
+                                            html.I("Proposed coefficients (full fit)"),
+                                            eval_train,
+                                            dcc.Graph(figure=eval_fig_ff),
+                                        ]
+                                    ),
                                 ]
                             ),
+                            html.P(),
                         ],
                         md=6,
                     ),
                     dbc.Col(
                         html.Div(
                             [
-                                dcc.Graph(figure=eval_fig),
-                                html.I(
-                                    "Note: Error bars in this plot represent the standard deviation from bootstrapping, and thus the uncertainty around the model's central estimates."
+                                html.B("Residual analysis"),
+                                dbc.Row(
+                                    [
+                                        dbc.Col([html.I("Held-out splits"), resid_ho]),
+                                        dbc.Col(
+                                            [
+                                                html.I(
+                                                    "Proposed coefficients (full fit)"
+                                                ),
+                                                resid_ff,
+                                            ]
+                                        ),
+                                    ]
                                 ),
+                                html.P(),
+                                html.Div(figs_resid),
                             ]
                         )
                     ),
@@ -604,7 +670,7 @@ def fit_linear(data, metric, predictors, production=True):
         ]
     )
 
-    # Model evaluation summary
+    # Permutation summary
     n_permutations = len(subsets)
     eval_disp = model_eval.reset_index().rename(columns={"index": "Permutation"})
     eval_disp["Permutation"] = eval_disp["Permutation"].apply(

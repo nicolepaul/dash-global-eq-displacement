@@ -39,10 +39,6 @@ EMPTY_FIG.update_layout(
     margin=dict(l=0, r=0, t=40, b=0),
 )
 
-CV = 5
-S = 5
-MIN_EVENT = 20
-
 BORDERLESS = {"style": {"border": "none", "boxShadow": "none"}}
 
 
@@ -51,12 +47,6 @@ DEFAULT_TEXT = dbc.CardBody(
         html.H4("Data definitions"),
         html.Ul(
             [
-                # html.Li(
-                #     [
-                #         html.B("Evacuated (peak): "),
-                #         "This is the number of people who leave their habitual dwelling for any period of time, whether that is to stay with family/friends, sleep outdoors on their land, or to go to a collective shelter point. This data is rarely systematically captured, although some countries such as the Philippines regularly track displaced populations both in collective shelters and with host families.",
-                #     ]
-                # ),
                 html.Li(
                     [
                         html.B("Sheltered (peak): "),
@@ -65,16 +55,22 @@ DEFAULT_TEXT = dbc.CardBody(
                 ),
                 html.Li(
                     [
-                        html.B("Protracted (6-month): "),
-                        "This is the number of people who had persistent sheltering or housing needs after the earthquake. Estimates near the six month mark were prioritized, typically representing the population still in collective shelters or who were receiving some form of temporary or transitional housing from the government. Households receiving assistance are not included, as they often continued to occupy their homes. Additionally, households who independently found their own forms of temporary housing without humanitarian or government support are not included. ",
+                        html.B("Snapshot (X-month): "),
+                        "This is the number of people who had persistent sheltering or housing needs after the earthquake. Estimates near the X month mark were prioritized, typically representing the population still in collective shelters or who were receiving some form of temporary or transitional housing from the government. Households receiving assistance are not included, as they often continued to occupy their homes. Additionally, households who independently found their own forms of temporary housing without humanitarian or government support are not included. ",
                     ]
                 ),
-                # html.Li(
-                #     [
-                #         html.B("Assisted: "),
-                #         "This is the number of people who received some form sheltering or housing assistance after the earthquake. Forms of assistance could include temporary or transitional housing, cash assistance for repairs or rebuilding, rental voucher, or replacement housing. Often, governments distribute this form of assistance based on housing damage, resulting in a high correlation between the reported damage and the reported number of people receiving assistance. Monetary assistance is the most prevalent form, but amounts received are not necessarily sufficient to cover costs to repair or rebuild.",
-                #     ]
-                # ),
+                html.Li(
+                    [
+                        html.B("Damaged dwellings: "),
+                        "This is the number of residential dwellings that have been damaged, but not destroyed. In general it is assumed that damaged buildings can be repaired. Often, households can occupy these dwellings during repair. An equivalent level of building loss would likely be <45%.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.B("Destroyed dwellings: "),
+                        "This is the number of residential dwellings that have been destroyed. In general it is assumed that destroyed buildings cannot be easily repaired, and thus would likely be rebuilt new. At a minimum, these buildings are likely to be temporarily uninhabitable. An equivalent level of building loss would likely be somewhere between 45-65%.",
+                    ]
+                ),
             ]
         ),
     ]
@@ -122,61 +118,82 @@ MI_QUANT = 0.5
 
 PARAM_GRID = {
     "n_estimators": [50],
-    "max_depth": [2, 3],
-    "learning_rate": [0.1, 0.2, 0.3],
-    "gamma": [0.3, 0.4, 0.5],
-    "min_child_weight": [3, 4, 5, 6, 7],
+    "max_depth": [2],
+    "learning_rate": [0.1, 0.2],
+    "gamma": [0.1, 0.2, 0.3],
+    "min_child_weight": [2, 3],
+    "reg_alpha": [0.01, 0.1],
+    "reg_lambda": [0.1, 1],
 }
 
-PARAM_PROD = {
-    "sheltered_peak": {
-        "n_estimators": 50,
-        "max_depth": 3,
-        "learning_rate": 0.3,
-        "gamma": 0.3,
-        "min_child_weight": 4,
-    },
-    "protracted": {
+PARAM_PROD = { 
+    "sheltered_peak": { # Consensus=15.2%, R2=0.802; DESTROYED, INCOME, PALMA, GRID_SMOD, AGE_DEPENDENCY, TENURE_SECURITY, EPR
         "n_estimators": 50,
         "max_depth": 2,
-        "learning_rate": 0.3,
-        "gamma": 0.5,
-        "min_child_weight": 3,
+        "learning_rate": 0.1,
+        "gamma": 0.2,
+        "reg_alpha": 0.1,
+        "reg_lambda": 1,
+        "min_child_weight": 2,
     },
-    "evacuated": {
+    "snapshot_3mo": { # Consensus=15.2%, R2=0.859; DESTROYED
+        "n_estimators": 50,
+        "max_depth": 2,
+        "learning_rate": 0.1,
+        "gamma": 0.3,
+        "reg_alpha": 0.1,
+        "reg_lambda": 0.1,
+        "min_child_weight": 2,
+    },
+    "snapshot_6mo": { # Consensus=13.1%, R2=0.844; DESTROYED, PALMA
         "n_estimators": 50,
         "max_depth": 2,
         "learning_rate": 0.2,
-        "gamma": 0.5,
-        "min_child_weight": 3,
+        "gamma": 0.2,
+        "reg_alpha": 0.01,
+        "reg_lambda": 0.1,
+        "min_child_weight": 2,
     },
-    "assisted": {
+    "snapshot_12mo": { # Consensus=17.2%, R2=0.767; DESTROYED, PALMA
         "n_estimators": 50,
         "max_depth": 2,
-        "learning_rate": 0.3,
-        "gamma": 0.5,
-        "min_child_weight": 4,
+        "learning_rate": 0.1,
+        "gamma": 0.3,
+        "reg_alpha": 0.1,
+        "reg_lambda": 0.1,
+        "min_child_weight": 2,
     },
 }
 
-LINEAR_TERMS = {
-    "sheltered_peak": ["DESTROYED", "I(DESTROYED>10)", "INCOME", "I(INCOME>0.7)", "PALMA", "I(PALMA>0.065)", "TENURE_SECURITY", "I(TENURE_SECURITY>0.83)", "DESTROYED×INCOME"],
-    "protracted": ["DESTROYED", "I(DESTROYED>10.3)", "PALMA", "I(PALMA>0.044)", "DESTROYED×PALMA"],
-    "evacuated": ["DESTROYED","I(DESTROYED>9)", "I(DESTROYED>12.5)", "INCOME", "I(INCOME>0.69)"],
+TREE_PROD = {
+    "sheltered_peak": ["DESTROYED", "INCOME", "PALMA", "GRID_SMOD", "AGE_DEPENDENCY", "TENURE_SECURITY", "EPR"],
+    "snapshot_3mo": ["DESTROYED"],
+    "snapshot_6mo": ["DESTROYED", "PALMA"],
+    "snapshot_12mo": ["DESTROYED", "PALMA"],
 }
+
+LINEAR_TERMS = {
+    "sheltered_peak": ['DESTROYED', 'I(DESTROYED>5.7)', 'I(DESTROYED>8.2)', 'INCOME', 'I(INCOME>0.7)', 'PALMA', 'I(PALMA>0.06)', "GRID_SMOD", "AGE_DEPENDENCY", "I(AGE_DEPENDENCY>0.67)", "TENURE_SECURITY", "I(TENURE_SECURITY>0.81)", "EPR",'DESTROYED×INCOME'], 
+    "snapshot_3mo": ["DESTROYED", "I(DESTROYED>5.5)", "I(DESTROYED>6.5)", "I(DESTROYED>12.6)"],
+    "snapshot_6mo": ["DESTROYED", "I(DESTROYED>6.5)", "PALMA", "I(PALMA>0.044)", "I(PALMA>0.07)","DESTROYED×PALMA"],
+    "snapshot_12mo": ["DESTROYED","I(DESTROYED>5.5)","I(DESTROYED>8.9)", "PALMA", "I(PALMA>0.044)", "I(PALMA>0.07)", "DESTROYED×PALMA"],
+}
+
 LINEAR_PROD = {
-    "sheltered_peak": ['DESTROYED', 'I(INCOME>0.7)', 'I(PALMA>0.065)', 'DESTROYED×INCOME'],
-    "protracted": ['DESTROYED', 'PALMA', 'I(PALMA>0.044)'],
-    "evacuated": ['DESTROYED', 'I(DESTROYED>9)'],
+    "sheltered_peak": ['DESTROYED', 'I(DESTROYED>5.7)', 'I(INCOME>0.7)', 'I(PALMA>0.06)', 'I(AGE_DEPENDENCY>0.67)'], # Held-out splits: MdAPE = 11.2%, MAPE = 15.3%, R² = 79.8%, Consensus score = 15.6%, Sigma = 1.642
+    "snapshot_3mo": ['DESTROYED'], # Held-out splits: MdAPE = 10.4%, MAPE = 12.3%, R² = 83.8%, Consensus score = 13.0%, Sigma = 1.973
+    "snapshot_6mo": ['DESTROYED', 'PALMA', 'DESTROYED×PALMA'], # Held-out splits: MdAPE = 10.2%, MAPE = 11.2%, R² = 84.1%, Consensus score = 12.4%, Sigma = 1.808
+    "snapshot_12mo": ['DESTROYED', 'PALMA', 'DESTROYED×PALMA'], # Held-out splits: MdAPE = 8.6%, MAPE = 11.4%, R² = 84.3%, Consensus score = 11.9%, Sigma = 1.936
 }
 
 CV_SEED = 22
 MODEL_SEED = 99
 
+CV = 5
+S = 10
+MIN_EVENT = 20
+
+MAX_TERMS = 5
 LIN_REPEATS = 50
 LIN_TEST = 0.2
 N_BOOTSTRAP = 300
-
-FILTER_R2 = 0.65
-FILTER_MAPE = 0.45
-FILTER_MDAPE = 0.20

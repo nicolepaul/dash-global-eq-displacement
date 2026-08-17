@@ -12,17 +12,15 @@ This repository contains data, analysis code, and a dashboard app. The analysis 
 
 The **event-based impact data** is available at: [assets/data.csv](assets/data.csv).
 
-* The dwelling damage data is under the columns `damaged` and `destroyed`, whereas the population displacement data is under the columns `sheltered_peak` and `protracted`. The corresponding source and analysis logic of the impact data are described in the `narrative` column with links to the public sources.
+* The dwelling damage data is under the columns `damaged` and `destroyed`, whereas the population displacement data is under the columns `sheltered_peak` and `snapshot_6mo`. The corresponding source and analysis logic of the impact data are described in the `narrative` column with links to the public sources.
 
 * The corresponding national and gridded covariates are denoted by columns in uppercase. The description and sources for the covariates are available at: [assets/drivers.csv](assets/drivers.csv).
 
-The **global probabilistic risk results** are available at: 
+The **global probabilistic risk results** are based on GEM's Global Seismic Risk Model v2026.0.0 and are available at: 
 
-* Average annual displacement, national ([assets/global_aad-0.csv](assets/global_aad-0.csv))
+* National ([assets/results_national.csv](assets/results_national.csv))
 
-* Average annual displacement, subnational ([assets/global_aad-1.csv](assets/global_aad-1.csv))
-
-* Probable maximum displacement ([assets/global_pmd.csv](assets/global_pmd.csv))
+* Subnational ([assets/results_subnational.csv](assets/results_subnational.csv))
 
 ### Analysis
 
